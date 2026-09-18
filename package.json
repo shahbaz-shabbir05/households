@@ -1,0 +1,26 @@
+{
+  "name": "hms",
+  "private": true,
+  "version": "0.1.0",
+  "description": "Home Management System - a family operating system for the household",
+  "type": "module",
+  "engines": { "node": ">=22" },
+  "workspaces": ["packages/*", "apps/*"],
+  "scripts": {
+    "build": "npm run build -w @hms/shared && npm run build -w @hms/api && npm run build -w @hms/web",
+    "dev": "npm run dev -w @hms/api & npm run dev -w @hms/web",
+    "dev:api": "npm run dev -w @hms/api",
+    "dev:web": "npm run dev -w @hms/web",
+    "test": "npm run test -w @hms/shared && npm run test -w @hms/api && npm run test -w @hms/web",
+    "typecheck": "npm run typecheck --workspaces --if-present",
+    "lint": "npm run typecheck",
+    "db:generate": "npm run db:generate -w @hms/api",
+    "db:migrate": "npm run db:migrate -w @hms/api",
+    "db:seed": "npm run db:seed -w @hms/api",
+    "db:reset": "npm run db:reset -w @hms/api"
+  },
+  "devDependencies": {
+    "typescript": "^5.9.2",
+    "vitest": "^3.2.4"
+  }
+}
