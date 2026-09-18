@@ -2,12 +2,13 @@ import { z } from 'zod';
 import { PRIORITIES, TASK_CATEGORIES, TASK_STATUSES } from '../enums.js';
 import {
   civilDateSchema,
+  nullableCivilDate,
+  nullableTimeOfDay,
   optionalText,
   paginationSchema,
   recurrenceRuleSchema,
   requiredText,
   sortOrderSchema,
-  timeOfDaySchema,
   uuidSchema,
 } from './common.js';
 
@@ -22,9 +23,9 @@ export const createTaskSchema = z
     priority: taskPrioritySchema.default('normal'),
     category: taskCategorySchema.default('other'),
     assigneeMemberId: uuidSchema.nullable().optional(),
-    dueDate: civilDateSchema.nullable().optional(),
-    dueTime: timeOfDaySchema.nullable().optional(),
-    startDate: civilDateSchema.nullable().optional(),
+    dueDate: nullableCivilDate(),
+    dueTime: nullableTimeOfDay(),
+    startDate: nullableCivilDate(),
     estimatedMinutes: z.number().int().positive().max(24 * 60).nullable().optional(),
     notes: optionalText(2000),
     /** Present means "make this a repeating task"; the series generates instances. */
@@ -47,9 +48,9 @@ export const updateTaskSchema = z.object({
   priority: taskPrioritySchema.optional(),
   category: taskCategorySchema.optional(),
   assigneeMemberId: uuidSchema.nullable().optional(),
-  dueDate: civilDateSchema.nullable().optional(),
-  dueTime: timeOfDaySchema.nullable().optional(),
-  startDate: civilDateSchema.nullable().optional(),
+  dueDate: nullableCivilDate(),
+  dueTime: nullableTimeOfDay(),
+  startDate: nullableCivilDate(),
   estimatedMinutes: z.number().int().positive().max(24 * 60).nullable().optional(),
   notes: optionalText(2000),
 });

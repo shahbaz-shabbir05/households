@@ -2,11 +2,12 @@ import { z } from 'zod';
 import { EVENT_TYPES } from '../enums.js';
 import {
   civilDateSchema,
+  nullableCivilDate,
+  nullableTimeOfDay,
   optionalText,
   paginationSchema,
   recurrenceRuleSchema,
   requiredText,
-  timeOfDaySchema,
   uuidSchema,
 } from './common.js';
 
@@ -17,9 +18,9 @@ const eventFields = {
   description: optionalText(4000),
   eventType: eventTypeSchema.default('other'),
   startDate: civilDateSchema,
-  startTime: timeOfDaySchema.nullable().optional(),
-  endDate: civilDateSchema.nullable().optional(),
-  endTime: timeOfDaySchema.nullable().optional(),
+  startTime: nullableTimeOfDay(),
+  endDate: nullableCivilDate(),
+  endTime: nullableTimeOfDay(),
   location: optionalText(200),
   participantMemberIds: z.array(uuidSchema).max(50).default([]),
   recurrence: recurrenceRuleSchema.optional(),

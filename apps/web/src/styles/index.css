@@ -1,0 +1,68 @@
+@import 'tailwindcss';
+
+/**
+ * Design tokens.
+ *
+ * Semantic names, not colour names: `--color-danger` survives a rebrand where
+ * `--color-red-600` does not.
+ */
+@theme {
+  --color-brand-50:  oklch(0.97 0.02 180);
+  --color-brand-100: oklch(0.94 0.04 180);
+  --color-brand-200: oklch(0.88 0.07 180);
+  --color-brand-500: oklch(0.65 0.12 180);
+  --color-brand-600: oklch(0.56 0.12 180);
+  --color-brand-700: oklch(0.47 0.10 180);
+  --color-brand-900: oklch(0.30 0.06 180);
+
+  --color-danger:     oklch(0.55 0.20 25);
+  --color-danger-bg:  oklch(0.96 0.03 25);
+  --color-warning:    oklch(0.68 0.16 70);
+  --color-warning-bg: oklch(0.97 0.04 80);
+  --color-success:    oklch(0.58 0.14 150);
+  --color-success-bg: oklch(0.96 0.04 150);
+
+  /* Reserved for the safe area on notched phones. */
+  --spacing-safe-bottom: env(safe-area-inset-bottom, 0px);
+}
+
+@layer base {
+  html {
+    -webkit-text-size-adjust: 100%;
+    /* Stops iOS zooming when a form field is focused. */
+    text-size-adjust: 100%;
+  }
+
+  body {
+    @apply bg-slate-50 text-slate-900 antialiased;
+    font-family: ui-sans-serif, system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
+  }
+
+  /* A visible focus ring is not optional: persona 4 navigates by keyboard. */
+  :focus-visible {
+    @apply outline-2 outline-offset-2 outline-brand-600;
+  }
+
+  /* Respect a user's motion preference rather than overriding it. */
+  @media (prefers-reduced-motion: reduce) {
+    *,
+    *::before,
+    *::after {
+      animation-duration: 0.01ms !important;
+      animation-iteration-count: 1 !important;
+      transition-duration: 0.01ms !important;
+      scroll-behavior: auto !important;
+    }
+  }
+}
+
+@layer utilities {
+  /* Every interactive element meets the 44px minimum touch target. */
+  .touch-target {
+    @apply min-h-11 min-w-11;
+  }
+
+  .skeleton {
+    @apply animate-pulse rounded bg-slate-200;
+  }
+}

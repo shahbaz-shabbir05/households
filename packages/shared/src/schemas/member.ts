@@ -1,6 +1,6 @@
 import { z } from 'zod';
 import { HOUSEHOLD_ROLES, RELATIONSHIPS } from '../enums.js';
-import { civilDateSchema, optionalText, requiredText, uuidSchema } from './common.js';
+import { optionalCivilDate, optionalText, requiredText, uuidSchema } from './common.js';
 import { emailSchema } from './auth.js';
 
 export const roleSchema = z.enum(HOUSEHOLD_ROLES);
@@ -15,7 +15,7 @@ export const createMemberSchema = z.object({
   displayName: requiredText(80, 'Name'),
   role: roleSchema.default('adult'),
   relationship: relationshipSchema.default('other'),
-  dateOfBirth: civilDateSchema.optional(),
+  dateOfBirth: optionalCivilDate(),
   gender: z.enum(['male', 'female', 'other', 'prefer_not_to_say']).optional(),
   phone: optionalText(40),
   email: emailSchema.optional(),

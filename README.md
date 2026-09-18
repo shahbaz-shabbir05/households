@@ -7,9 +7,10 @@ Bills, tasks, groceries, medicines, appointments, documents and the people they
 belong to — wired together so that finishing a shopping trip updates the
 inventory *and* records the expense, and paying a bill closes its reminder.
 
-> **Status:** Phase 1 complete (platform, identity, households, members,
-> dashboard foundation). See [`docs/15-roadmap.md`](docs/15-roadmap.md) for what
-> lands when.
+> **Status:** Phases 1–2 complete and usable end to end — sign up, add your
+> household, and manage tasks, chores, reminders and the family calendar from a
+> phone. Shopping, bills and expenses are next. See
+> [`docs/15-roadmap.md`](docs/15-roadmap.md) for what lands when.
 
 ## Read this first
 

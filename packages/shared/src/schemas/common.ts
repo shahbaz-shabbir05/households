@@ -17,6 +17,27 @@ export const timeOfDaySchema = z
   .string()
   .regex(/^([01]\d|2[0-3]):[0-5]\d$/, 'Expected a time in HH:MM format');
 
+/**
+ * Optional date/time fields, as an HTML form actually submits them.
+ *
+ * An untouched `<input type="date">` submits an empty string, not `undefined`.
+ * Without this, every optional date on every create form fails validation the
+ * first time a user leaves it blank — so the contract accepts what the platform
+ * sends rather than what would be tidier.
+ */
+export const optionalCivilDate = () =>
+  z.preprocess((v) => (v === '' ? undefined : v), civilDateSchema.optional());
+
+/** As above, but an empty value means "clear this field" rather than "unset". */
+export const nullableCivilDate = () =>
+  z.preprocess((v) => (v === '' ? null : v), civilDateSchema.nullable().optional());
+
+export const optionalTimeOfDay = () =>
+  z.preprocess((v) => (v === '' ? undefined : v), timeOfDaySchema.optional());
+
+export const nullableTimeOfDay = () =>
+  z.preprocess((v) => (v === '' ? null : v), timeOfDaySchema.nullable().optional());
+
 export const currencySchema = z
   .string()
   .regex(/^[A-Z]{3}$/, 'Expected a 3-letter ISO 4217 currency code');

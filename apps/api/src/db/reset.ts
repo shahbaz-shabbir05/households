@@ -13,7 +13,11 @@ async function reset(): Promise<void> {
   }
 
   const db = getDb();
-  await db.execute(sql`DROP SCHEMA public CASCADE`);
+  await db.execute(sql`DROP SCHEMA IF EXISTS public CASCADE`);
+  // Drizzle keeps its migration journal in its own schema. Dropping only
+  // `public` leaves the journal claiming every migration is applied, so the
+  // migrator does nothing and the database comes back empty.
+  await db.execute(sql`DROP SCHEMA IF EXISTS drizzle CASCADE`);
   await db.execute(sql`CREATE SCHEMA public`);
   await runMigrations();
   console.log('Database reset and migrated.');
