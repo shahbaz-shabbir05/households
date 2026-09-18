@@ -3,14 +3,21 @@
   "compilerOptions": {
     "outDir": "dist",
     "rootDir": "src",
-    "composite": true,
-    "declarationMap": true
+    "types": [
+      "node"
+    ],
+    "composite": true
   },
+  "references": [
+    {
+      "path": "../../packages/shared"
+    }
+  ],
   "include": [
     "src/**/*"
   ],
   "exclude": [
-    "src/**/__tests__/**",
-    "dist"
+    "dist",
+    "node_modules"
   ]
 }
