@@ -113,9 +113,9 @@ UNIQUE (household_id, user_id) WHERE user_id IS NOT NULL  -- a user joins a hous
 | Table | Notes |
 | --- | --- |
 | `tasks` | `title`, `description`, `status` (pending/in_progress/completed/cancelled), `priority` (low/normal/high/urgent), `category` (incl. `chore`), `assignee_member_id`, `due_date`, `due_time`, `start_date`, `estimated_minutes`, `completed_at`, `completed_by_member_id`, `series_id`, `occurrence_date` |
-| `events` | `title`, `starts_at`, `ends_at`, `all_day`, `location`, `event_type`, `series_id`, `occurrence_date` |
+| `events` | `title`, `start_date`, `start_time`, `end_date`, `end_time`, `is_all_day`, `location`, `event_type`, `series_id`, `occurrence_date`. **Stored as civil date + optional time, not a bare `timestamptz`** — the dominant household event types (birthdays, anniversaries, holidays) are date-only, and forcing them through an instant is how a birthday shows a day early for half the family. Timed events convert via `core/time` when an instant is needed |
 | `event_participants` | `event_id`, `member_id` — M:N |
-| `reminders` | Polymorphic: `entity_type`, `entity_id` (both nullable → standalone reminder), `remind_at`, `assignee_member_id`, `priority`, `status`, `series_id` |
+| `reminders` | Polymorphic: `entity_type`, `entity_id` (both nullable → standalone reminder), `remind_at` (instant, because the dispatcher sweeps globally), plus `remind_on_date`/`remind_at_time` kept verbatim so the UI never has to undo the timezone conversion. `assignee_member_id`, `priority`, `status`, `series_id` |
 
 ### Shopping
 | Table | Notes |
@@ -188,7 +188,7 @@ CREATE INDEX tasks_due_idx    ON tasks (household_id, status, due_date)
 CREATE INDEX tasks_assignee_idx ON tasks (household_id, assignee_member_id, status, due_date)
   WHERE deleted_at IS NULL;
 CREATE INDEX bills_due_idx    ON bills (household_id, status, due_date) WHERE deleted_at IS NULL;
-CREATE INDEX events_range_idx ON events (household_id, starts_at);
+CREATE INDEX events_range_idx ON events (household_id, start_date) WHERE deleted_at IS NULL;
 CREATE INDEX reminders_due_idx ON reminders (household_id, status, remind_at);
 
 -- the scheduler's hot path (NOT household-scoped: it sweeps globally)

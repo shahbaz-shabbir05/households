@@ -16,6 +16,12 @@ import { AuthService } from './modules/auth/service.js';
 import { HouseholdService } from './modules/households/service.js';
 import { MemberService } from './modules/members/service.js';
 import { DashboardService } from './modules/dashboard/service.js';
+import { TaskService } from './modules/tasks/service.js';
+import { taskDashboardContributor } from './modules/tasks/dashboard.js';
+import { EventService } from './modules/events/service.js';
+import { eventDashboardContributor } from './modules/events/dashboard.js';
+import { ReminderService } from './modules/reminders/service.js';
+import { reminderDashboardContributor } from './modules/reminders/dashboard.js';
 
 export interface Container {
   db: Database;
@@ -28,6 +34,9 @@ export interface Container {
   households: HouseholdService;
   members: MemberService;
   dashboard: DashboardService;
+  tasks: TaskService;
+  events: EventService;
+  reminders: ReminderService;
 }
 
 export interface ContainerOverrides {
@@ -53,6 +62,24 @@ export function createContainer(log: FastifyBaseLogger, overrides: ContainerOver
   const materialisers = new MaterialiserRegistry();
   const storage = overrides.storage ?? createStorageDriver();
 
+  const tasks = new TaskService(db, now);
+  const events = new EventService(db, now);
+  const reminders = new ReminderService(db, notifications, now);
+
+  // Modules register with the recurrence engine and the dashboard rather than
+  // either of those importing modules — that is what keeps the monolith
+  // modular (docs/05, docs/08).
+  materialisers
+    .register('task', tasks.materialiser)
+    .register('event', events.materialiser)
+    .register('reminder', reminders.materialiser);
+
+  const dashboard = new DashboardService(db, now);
+  dashboard
+    .register(taskDashboardContributor)
+    .register(reminderDashboardContributor)
+    .register(eventDashboardContributor);
+
   return {
     db,
     mailer,
@@ -63,6 +90,9 @@ export function createContainer(log: FastifyBaseLogger, overrides: ContainerOver
     auth: new AuthService(db, mailer, undefined, now),
     households: new HouseholdService(db),
     members: new MemberService(db),
-    dashboard: new DashboardService(db, now),
+    dashboard,
+    tasks,
+    events,
+    reminders,
   };
 }

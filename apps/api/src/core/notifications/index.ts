@@ -90,6 +90,9 @@ export class NotificationService {
       .values(rows)
       .onConflictDoUpdate({
         target: [notifications.householdId, notifications.memberId, notifications.dedupeKey],
+        // The unique index is partial, so Postgres can only infer it when the
+        // predicate is restated here. Without this the insert fails outright.
+        targetWhere: sql`${notifications.dedupeKey} IS NOT NULL`,
         // A repeat refreshes the message and un-reads it, so a still-unpaid bill
         // resurfaces without stacking up six rows.
         set: {
@@ -99,7 +102,6 @@ export class NotificationService {
           updatedAt: sql`now()`,
           readAt: null,
         },
-        setWhere: sql`${notifications.dedupeKey} IS NOT NULL`,
       })
       .returning({ id: notifications.id });
 

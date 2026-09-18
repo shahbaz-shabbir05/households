@@ -135,3 +135,36 @@ export class Agent {
     }
   }
 }
+
+/**
+ * Runs one background job once, deterministically.
+ *
+ * The production runner swallows job errors on purpose — one failing job must
+ * not stop the scheduler — which would make a broken job look like "0 items
+ * processed" in a test. This helper reads back the recorded run and fails
+ * loudly instead.
+ */
+export async function runJobOnce(test: TestApp, name: string, at: Date): Promise<number | null> {
+  const { buildJobs } = await import('../jobs/index.js');
+  const { JobRunner } = await import('../core/jobs.js');
+  const { jobRuns } = await import('../db/schema/index.js');
+  const { desc, eq } = await import('drizzle-orm');
+
+  const job = buildJobs(test.container).find((j) => j.name === name);
+  if (!job) throw new Error(`No job registered called "${name}"`);
+
+  const silentLog = { info: () => {}, warn: () => {}, error: () => {} };
+  const processed = await new JobRunner(test.container.db, silentLog, [job]).runOnce(job, at);
+
+  const [run] = await test.container.db
+    .select()
+    .from(jobRuns)
+    .where(eq(jobRuns.jobName, name))
+    .orderBy(desc(jobRuns.startedAt))
+    .limit(1);
+
+  if (run?.status === 'failed') {
+    throw new Error(`Job "${name}" failed: ${run.error}`);
+  }
+  return processed;
+}

@@ -18,6 +18,35 @@ const HOUR = 60 * MINUTE;
 export function buildJobs(container: Container): JobDefinition[] {
   return [
     {
+      // Materialises upcoming occurrences for every active series. Idempotent
+      // by construction: the series_occurrences unique index means a second
+      // run in the same window creates nothing (docs/08).
+      name: 'generateRecurrences',
+      intervalMs: 15 * MINUTE,
+      run: async ({ db, now }) => {
+        const { loadSeriesDueForGeneration, generateForSeries } = await import(
+          '../core/recurrence-service.js'
+        );
+        const { todayIn } = await import('../core/time.js');
+
+        let created = 0;
+        // Loaded per-household timezone by the query, so "today" is correct for
+        // each series rather than for the server.
+        for (const series of await loadSeriesDueForGeneration(db, todayIn('UTC', now))) {
+          const materialiser = container.materialisers.get(series.entityType);
+          if (!materialiser) continue;
+          created += await db.transaction((tx) => generateForSeries(tx, series, materialiser, now));
+        }
+        return created;
+      },
+    },
+    {
+      // Turns due reminders into notifications.
+      name: 'dispatchReminders',
+      intervalMs: MINUTE,
+      run: async ({ db, now }) => container.reminders.dispatchDue(db, now),
+    },
+    {
       name: 'dispatchNotifications',
       intervalMs: MINUTE,
       run: async ({ db }) => container.notifications.dispatchPending(db),

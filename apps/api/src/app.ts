@@ -17,6 +17,10 @@ import { registerAuthRoutes } from './modules/auth/routes.js';
 import { registerHouseholdRoutes } from './modules/households/routes.js';
 import { registerMemberRoutes } from './modules/members/routes.js';
 import { registerDashboardRoutes } from './modules/dashboard/routes.js';
+import { registerTaskRoutes } from './modules/tasks/routes.js';
+import { registerEventRoutes } from './modules/events/routes.js';
+import { registerReminderRoutes } from './modules/reminders/routes.js';
+import { registerNotificationRoutes } from './modules/notifications/routes.js';
 
 export interface BuiltApp {
   app: FastifyInstance;
@@ -113,6 +117,10 @@ export async function buildApp(overrides: ContainerOverrides = {}): Promise<Buil
       await registerHouseholdRoutes(api, container);
       await registerMemberRoutes(api, container);
       await registerDashboardRoutes(api, container);
+      await registerTaskRoutes(api, container);
+      await registerEventRoutes(api, container);
+      await registerReminderRoutes(api, container);
+      await registerNotificationRoutes(api, container);
     },
     { prefix: '/api/v1' },
   );

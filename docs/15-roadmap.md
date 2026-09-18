@@ -28,7 +28,7 @@ available to this project.*
 **Done when:** a family can sign up, add everyone, and see a dashboard — and the
 permission matrix is enforced and tested.
 
-## Phase 2 — Tasks, chores, reminders, events
+## Phase 2 — Tasks, chores, reminders, events ✅
 Tasks with assignment, priority, status, recurrence · chores as a saved view ·
 reminders + in-app notifications + the dispatch job · events + calendar
 (month/week/agenda) · first quick-add actions.

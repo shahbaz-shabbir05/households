@@ -12,6 +12,7 @@
 import { sql } from 'drizzle-orm';
 import { eq } from 'drizzle-orm';
 import type { Database } from '../db/client.js';
+import { getPool } from '../db/client.js';
 import { jobRuns } from '../db/schema/index.js';
 
 export interface JobContext {
@@ -82,15 +83,34 @@ export class JobRunner {
    */
   async runOnce(job: JobDefinition, now: Date = new Date()): Promise<number | null> {
     const key = lockKey(job.name);
-    const [lock] = await this.db.execute<{ locked: boolean }>(
-      sql`SELECT pg_try_advisory_lock(${key}::bigint) AS locked`,
-    ).then((r) => r.rows);
 
-    if (!lock?.locked) {
-      // Another instance is already on it. Not an error.
-      return null;
+    // Advisory locks belong to a *session*, so the lock and the unlock must run
+    // on the same connection. Taking a dedicated client from the pool and
+    // holding it for the job's duration is what guarantees that — issuing both
+    // through the pool can land them on different connections and leak the lock.
+    const client = await getPool().connect();
+    let locked = false;
+
+    try {
+      const result = await client.query<{ locked: boolean }>(
+        'SELECT pg_try_advisory_lock($1::bigint) AS locked',
+        [key.toString()],
+      );
+      locked = result.rows[0]?.locked === true;
+      if (!locked) {
+        // Another instance is already on it. Not an error.
+        return null;
+      }
+      return await this.execute(job, now);
+    } finally {
+      if (locked) {
+        await client.query('SELECT pg_advisory_unlock($1::bigint)', [key.toString()]);
+      }
+      client.release();
     }
+  }
 
+  private async execute(job: JobDefinition, now: Date): Promise<number> {
     const [run] = await this.db
       .insert(jobRuns)
       .values({ jobName: job.name, startedAt: now, status: 'running' })
@@ -113,8 +133,6 @@ export class JobRunner {
       // Logged, not rethrown: one failing job must not stop the scheduler.
       this.log.error({ job: job.name, err: message }, 'job failed');
       return 0;
-    } finally {
-      await this.db.execute(sql`SELECT pg_advisory_unlock(${key}::bigint)`);
     }
   }
 }
