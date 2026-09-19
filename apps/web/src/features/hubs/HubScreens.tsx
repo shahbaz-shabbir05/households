@@ -76,10 +76,10 @@ export function HomeHubScreen() {
             icon: ListTodo,
           },
           {
+            to: '/home/shopping',
             label: 'Shopping & inventory',
             description: 'What you have, what is running low, and the list',
             icon: ShoppingCart,
-            phase: 'Phase 3',
           },
           {
             label: 'Maintenance',
@@ -112,10 +112,10 @@ export function MoneyHubScreen() {
             phase: 'Phase 4',
           },
           {
+            to: '/money/expenses',
             label: 'Expenses',
             description: 'Where the money went, by category and by person',
             icon: Receipt,
-            phase: 'Phase 4',
           },
           {
             label: 'Budgets',
@@ -126,7 +126,7 @@ export function MoneyHubScreen() {
         ]}
       />
       <p className="mt-4 px-1 text-xs text-slate-500">
-        Bills and expenses are next. Until then, a reminder is a reasonable
+        Bills and budgets are next. Until then, a reminder is a reasonable
         stand-in for a due date you cannot afford to miss.
       </p>
     </div>

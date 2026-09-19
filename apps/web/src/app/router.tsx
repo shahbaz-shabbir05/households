@@ -15,6 +15,9 @@ import { CalendarScreen } from '../features/calendar/CalendarScreen.js';
 import { RemindersScreen } from '../features/calendar/RemindersScreen.js';
 import { FamilyScreen } from '../features/family/FamilyScreen.js';
 import { HomeHubScreen, MoneyHubScreen } from '../features/hubs/HubScreens.js';
+import { ShoppingScreen } from '../features/shopping/ShoppingScreen.js';
+import { ShoppingListScreen } from '../features/shopping/ShoppingListScreen.js';
+import { ExpensesScreen } from '../features/money/ExpensesScreen.js';
 
 function FullPageSpinner() {
   return (
@@ -71,7 +74,10 @@ export const router = createBrowserRouter([
       { path: '/calendar/reminders', element: <RemindersScreen /> },
       { path: '/home', element: <HomeHubScreen /> },
       { path: '/home/tasks', element: <TasksScreen /> },
+      { path: '/home/shopping', element: <ShoppingScreen /> },
+      { path: '/home/shopping/:listId', element: <ShoppingListScreen /> },
       { path: '/money', element: <MoneyHubScreen /> },
+      { path: '/money/expenses', element: <ExpensesScreen /> },
       { path: '/family', element: <FamilyScreen /> },
     ],
   },

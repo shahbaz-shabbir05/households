@@ -8,9 +8,10 @@
  */
 
 import { useState, type FormEvent } from 'react';
-import { Bell, CalendarPlus, ListTodo } from 'lucide-react';
-import { addDays } from '@hms/shared';
+import { Bell, CalendarPlus, ListTodo, Receipt, ShoppingCart } from 'lucide-react';
+import { addDays, parseMoneyInput, type ExpenseCategory } from '@hms/shared';
 import { useHousehold } from '../../app/session.js';
+import { allows } from '../../app/permissions.js';
 import { Button, Field, Input, Select, Sheet, cx } from '../../components/ui/index.js';
 import { useToast } from '../../components/ui/toast.js';
 import { ApiError } from '../../lib/api.js';
@@ -18,22 +19,35 @@ import { todayIn } from '../../lib/format.js';
 import { useMembers } from '../family/api.js';
 import { useCreateTask } from '../tasks/hooks.js';
 import { useCreateEvent, useCreateReminder } from '../calendar/api.js';
+import { useAddShoppingItem, useCreateShoppingList, useShoppingLists } from '../shopping/api.js';
+import { useCreateExpense } from '../money/api.js';
 
-type QuickAddKind = 'task' | 'reminder' | 'event';
+type QuickAddKind = 'expense' | 'grocery' | 'task' | 'reminder' | 'event';
 
-const KINDS: Array<{ kind: QuickAddKind; label: string; icon: typeof ListTodo }> = [
-  { kind: 'task', label: 'Task', icon: ListTodo },
-  { kind: 'reminder', label: 'Reminder', icon: Bell },
-  { kind: 'event', label: 'Event', icon: CalendarPlus },
+const KINDS: Array<{
+  kind: QuickAddKind;
+  label: string;
+  icon: typeof ListTodo;
+  capability?: Parameters<typeof allows>[1];
+}> = [
+  // Ordered by how often a household actually captures each one.
+  { kind: 'expense', label: 'Expense', icon: Receipt, capability: 'viewMoney' },
+  { kind: 'grocery', label: 'Grocery', icon: ShoppingCart, capability: 'viewShopping' },
+  { kind: 'task', label: 'Task', icon: ListTodo, capability: 'createTask' },
+  { kind: 'reminder', label: 'Reminder', icon: Bell, capability: 'createReminder' },
+  { kind: 'event', label: 'Event', icon: CalendarPlus, capability: 'createEvent' },
 ];
 
 export function QuickAddSheet({ open, onClose }: { open: boolean; onClose: () => void }) {
-  const [kind, setKind] = useState<QuickAddKind>('task');
+  const household = useHousehold();
+  // Never offer a shortcut the server will refuse.
+  const kinds = KINDS.filter((k) => !k.capability || allows(household.role, k.capability));
+  const [kind, setKind] = useState<QuickAddKind>(kinds[0]?.kind ?? 'task');
 
   return (
     <Sheet open={open} onClose={onClose} title="Add something">
-      <div className="mb-4 flex gap-2" role="tablist" aria-label="What are you adding?">
-        {KINDS.map((option) => {
+      <div className="mb-4 grid grid-cols-5 gap-1.5" role="tablist" aria-label="What are you adding?">
+        {kinds.map((option) => {
           const Icon = option.icon;
           const selected = kind === option.kind;
           return (
@@ -43,7 +57,7 @@ export function QuickAddSheet({ open, onClose }: { open: boolean; onClose: () =>
               aria-selected={selected}
               onClick={() => setKind(option.kind)}
               className={cx(
-                'flex flex-1 touch-target flex-col items-center gap-1 rounded-lg border px-2 py-3 text-xs font-medium transition-colors',
+                'flex touch-target flex-col items-center gap-1 rounded-lg border px-1 py-3 text-[11px] font-medium transition-colors',
                 selected
                   ? 'border-brand-600 bg-brand-50 text-brand-900'
                   : 'border-slate-200 text-slate-600 hover:bg-slate-50',
@@ -56,6 +70,8 @@ export function QuickAddSheet({ open, onClose }: { open: boolean; onClose: () =>
         })}
       </div>
 
+      {kind === 'expense' && <QuickAddExpense onDone={onClose} />}
+      {kind === 'grocery' && <QuickAddGrocery onDone={onClose} />}
       {kind === 'task' && <QuickAddTask onDone={onClose} />}
       {kind === 'reminder' && <QuickAddReminder onDone={onClose} />}
       {kind === 'event' && <QuickAddEvent onDone={onClose} />}
@@ -352,6 +368,151 @@ function QuickAddEvent({ onDone }: { onDone: () => void }) {
 
       <Button type="submit" size="lg" loading={createEvent.isPending} className="w-full">
         Add event
+      </Button>
+    </form>
+  );
+}
+
+/**
+ * Amount, category, done. Everything else — who paid, where, when — defaults
+ * sensibly, because a capture that takes longer than not capturing does not
+ * happen (docs/00).
+ */
+function QuickAddExpense({ onDone }: { onDone: () => void }) {
+  const { household, toast, today, fieldErrors, setFieldErrors, reportError } = useQuickAddState();
+  const createExpense = useCreateExpense(household.id);
+
+  const [amount, setAmount] = useState('');
+  const [category, setCategory] = useState<ExpenseCategory>('groceries');
+
+  async function onSubmit(event: FormEvent) {
+    event.preventDefault();
+    setFieldErrors({});
+
+    const amountMinor = parseMoneyInput(amount, household.currency);
+    if (amountMinor === null) {
+      // Recording zero would be a free purchase nobody made.
+      setFieldErrors({ amountMinor: 'Enter an amount' });
+      return;
+    }
+
+    try {
+      await createExpense.mutateAsync({
+        amountMinor,
+        spentOn: today,
+        category,
+        paymentMethod: 'cash',
+        paidByMemberId: household.memberId,
+      } as never);
+      toast.success('Expense recorded');
+      onDone();
+    } catch (error) {
+      reportError(error);
+    }
+  }
+
+  return (
+    <form onSubmit={onSubmit} className="space-y-4" noValidate>
+      <Field label={`How much? (${household.currency})`} error={fieldErrors.amountMinor} required>
+        {({ id, invalid }) => (
+          <Input
+            id={id}
+            inputMode="decimal"
+            value={amount}
+            onChange={(event) => setAmount(event.target.value)}
+            placeholder="1250"
+            invalid={invalid}
+            required
+          />
+        )}
+      </Field>
+
+      <Field label="What for?">
+        {({ id }) => (
+          <Select id={id} value={category} onChange={(e) => setCategory(e.target.value as ExpenseCategory)}>
+            {['groceries', 'utilities', 'transport', 'dining', 'medical', 'household', 'education', 'other'].map((c) => (
+              <option key={c} value={c}>{c[0]!.toUpperCase() + c.slice(1)}</option>
+            ))}
+          </Select>
+        )}
+      </Field>
+
+      <Button type="submit" size="lg" loading={createExpense.isPending} className="w-full">
+        Record expense
+      </Button>
+    </form>
+  );
+}
+
+/**
+ * One field: the thing you just realised you need. It goes on the open list,
+ * or a new one is started — the user should never have to think about which.
+ */
+function QuickAddGrocery({ onDone }: { onDone: () => void }) {
+  const { household, toast, fieldErrors, setFieldErrors, reportError } = useQuickAddState();
+  const lists = useShoppingLists(household.id, 'open');
+  const createList = useCreateShoppingList(household.id);
+  const addItem = useAddShoppingItem(household.id);
+
+  const [name, setName] = useState('');
+  const openLists = lists.data?.data ?? [];
+
+  async function onSubmit(event: FormEvent) {
+    event.preventDefault();
+    setFieldErrors({});
+
+    const trimmed = name.trim();
+    if (!trimmed) {
+      setFieldErrors({ name: 'What do you need?' });
+      return;
+    }
+
+    try {
+      const listId =
+        openLists[0]?.id ?? (await createList.mutateAsync({ name: 'Shopping list' }))!.id;
+      await addItem.mutateAsync({
+        listId,
+        input: { name: trimmed, quantity: 1, priority: 'normal' },
+      });
+      toast.success(`${trimmed} added to the list`);
+      onDone();
+    } catch (error) {
+      reportError(error);
+    }
+  }
+
+  return (
+    <form onSubmit={onSubmit} className="space-y-4" noValidate>
+      <Field
+        label="What do you need?"
+        error={fieldErrors.name}
+        hint={
+          openLists[0]
+            ? `Goes on "${openLists[0].name}"`
+            : 'We’ll start a list for you'
+        }
+        required
+      >
+        {({ id, invalid }) => (
+          <Input
+            id={id}
+            value={name}
+            onChange={(event) => setName(event.target.value)}
+            placeholder="e.g. Milk"
+            autoComplete="off"
+            invalid={invalid}
+            required
+          />
+        )}
+      </Field>
+
+      <Button
+        type="submit"
+        size="lg"
+        loading={addItem.isPending || createList.isPending}
+        className="w-full"
+      >
+        Add to list
       </Button>
     </form>
   );
