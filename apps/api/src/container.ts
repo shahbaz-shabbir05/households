@@ -22,6 +22,10 @@ import { EventService } from './modules/events/service.js';
 import { eventDashboardContributor } from './modules/events/dashboard.js';
 import { ReminderService } from './modules/reminders/service.js';
 import { reminderDashboardContributor } from './modules/reminders/dashboard.js';
+import { ExpenseService } from './modules/expenses/service.js';
+import { InventoryService } from './modules/inventory/service.js';
+import { ShoppingService } from './modules/shopping/service.js';
+import { createShoppingDashboardContributor } from './modules/shopping/dashboard.js';
 
 export interface Container {
   db: Database;
@@ -37,6 +41,9 @@ export interface Container {
   tasks: TaskService;
   events: EventService;
   reminders: ReminderService;
+  expenses: ExpenseService;
+  inventory: InventoryService;
+  shopping: ShoppingService;
 }
 
 export interface ContainerOverrides {
@@ -66,6 +73,12 @@ export function createContainer(log: FastifyBaseLogger, overrides: ContainerOver
   const events = new EventService(db, now);
   const reminders = new ReminderService(db, notifications, now);
 
+  // Shopping composes with expenses and inventory through their services, never
+  // their tables — that is what keeps the module boundaries real (docs/05).
+  const expenses = new ExpenseService(db, now);
+  const inventory = new InventoryService(db, now);
+  const shopping = new ShoppingService(db, expenses, inventory, now);
+
   // Modules register with the recurrence engine and the dashboard rather than
   // either of those importing modules — that is what keeps the monolith
   // modular (docs/05, docs/08).
@@ -78,7 +91,8 @@ export function createContainer(log: FastifyBaseLogger, overrides: ContainerOver
   dashboard
     .register(taskDashboardContributor)
     .register(reminderDashboardContributor)
-    .register(eventDashboardContributor);
+    .register(eventDashboardContributor)
+    .register(createShoppingDashboardContributor(inventory));
 
   return {
     db,
@@ -94,5 +108,8 @@ export function createContainer(log: FastifyBaseLogger, overrides: ContainerOver
     tasks,
     events,
     reminders,
+    expenses,
+    inventory,
+    shopping,
   };
 }

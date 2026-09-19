@@ -8,7 +8,7 @@
 import { eq, sql } from 'drizzle-orm';
 import { config } from '../config/index.js';
 import { closeDb, getDb } from './client.js';
-import { householdMembers, households, users } from './schema/index.js';
+import { householdMembers, households, inventoryItems, shoppingListItems, shoppingLists, users } from './schema/index.js';
 import { scryptHasher } from '../core/password.js';
 
 const DEMO_EMAIL = 'ayesha@example.test';
@@ -99,12 +99,77 @@ async function seed(): Promise<void> {
     },
   ]);
 
+  // A realistic pantry, including a few things already running low so the
+  // dashboard suggestion and the "add low stock" action have something to do.
+  const pantry = await db
+    .insert(inventoryItems)
+    .values(
+      (
+        [
+          ['Milk', 'dairy', 'litre', 1, 2, 25000, 2],
+          ['Eggs', 'dairy', 'dozen', 0, 1, 40000, 7],
+          ['Basmati rice', 'pantry', 'kg', 4, 2, 45000, 30],
+          ['Cooking oil', 'pantry', 'litre', 3, 1, 65000, 30],
+          ['Sugar', 'pantry', 'kg', 0.5, 1, 18000, 30],
+          ['Wheat flour', 'pantry', 'kg', 8, 5, 12000, 15],
+          ['Tea', 'beverages', 'pack', 2, 1, 55000, 21],
+          ['Yoghurt', 'dairy', 'pack', 2, 1, 15000, 3],
+          ['Chicken', 'meat', 'kg', 1, 1, 75000, 7],
+          ['Tomatoes', 'produce', 'kg', 2, 1, 12000, 4],
+          ['Onions', 'produce', 'kg', 3, 2, 10000, 7],
+          ['Dish soap', 'cleaning', 'bottle', 1, 1, 22000, 45],
+          ['Toothpaste', 'toiletries', 'piece', 2, 1, 35000, 60],
+        ] as const
+      ).map(([name, category, unit, quantity, minQuantity, price, cadence]) => ({
+        householdId: household!.id,
+        name,
+        kind: (category === 'cleaning' || category === 'toiletries' ? 'supply' : 'grocery') as
+          | 'supply'
+          | 'grocery',
+        category,
+        unit,
+        quantity: String(quantity),
+        minQuantity: String(minQuantity),
+        estimatedPriceMinor: price,
+        restockIntervalDays: cadence,
+        createdBy: user!.id,
+      })),
+    )
+    .returning({ id: inventoryItems.id, name: inventoryItems.name });
+
+  const [list] = await db
+    .insert(shoppingLists)
+    .values({
+      householdId: household!.id,
+      name: 'Weekly shop',
+      store: 'Imtiaz',
+      createdBy: user!.id,
+    })
+    .returning();
+
+  // Pre-fill the list with the items that are actually low.
+  const lowNames = new Set(['Milk', 'Eggs', 'Sugar']);
+  await db.insert(shoppingListItems).values(
+    pantry
+      .filter((item) => lowNames.has(item.name))
+      .map((item) => ({
+        householdId: household!.id,
+        listId: list!.id,
+        inventoryItemId: item.id,
+        nameSnapshot: item.name,
+        quantity: '2',
+      })),
+  );
+
   const [counted] = await db
     .select({ count: sql<number>`count(*)::int` })
     .from(householdMembers)
     .where(eq(householdMembers.householdId, household!.id));
 
-  console.log(`Seeded "${household!.name}" with ${counted?.count ?? 0} members.`);
+  console.log(
+    `Seeded "${household!.name}" with ${counted?.count ?? 0} members, ` +
+      `${pantry.length} inventory items and a shopping list.`,
+  );
   console.log(`Sign in with ${DEMO_EMAIL} / ${DEMO_PASSWORD}`);
 }
 

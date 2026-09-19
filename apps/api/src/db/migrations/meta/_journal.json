@@ -22,6 +22,13 @@
       "when": 1789696285902,
       "tag": "0002_work",
       "breakpoints": true
+    },
+    {
+      "idx": 3,
+      "version": "7",
+      "when": 1789796837903,
+      "tag": "0003_shopping_and_expenses",
+      "breakpoints": true
     }
   ]
 }

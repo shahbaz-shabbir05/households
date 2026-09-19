@@ -19,6 +19,13 @@ let db: Database | null = null;
 pg.types.setTypeParser(pg.types.builtins.INT8, (value) => Number(value));
 /** `date` columns are civil dates; hand them back as `YYYY-MM-DD`, never a Date. */
 pg.types.setTypeParser(pg.types.builtins.DATE, (value) => value);
+/**
+ * `numeric` is returned as a string by default to preserve arbitrary precision.
+ * The only numerics in this schema are inventory quantities (12,3), which are
+ * far inside float range — money is always integer minor units and never
+ * numeric — so reading them as numbers is safe and saves every caller a parse.
+ */
+pg.types.setTypeParser(pg.types.builtins.NUMERIC, (value) => Number(value));
 
 export function getPool(): pg.Pool {
   pool ??= new pg.Pool({

@@ -21,6 +21,9 @@ import { registerTaskRoutes } from './modules/tasks/routes.js';
 import { registerEventRoutes } from './modules/events/routes.js';
 import { registerReminderRoutes } from './modules/reminders/routes.js';
 import { registerNotificationRoutes } from './modules/notifications/routes.js';
+import { registerExpenseRoutes } from './modules/expenses/routes.js';
+import { registerInventoryRoutes } from './modules/inventory/routes.js';
+import { registerShoppingRoutes } from './modules/shopping/routes.js';
 
 export interface BuiltApp {
   app: FastifyInstance;
@@ -121,6 +124,9 @@ export async function buildApp(overrides: ContainerOverrides = {}): Promise<Buil
       await registerEventRoutes(api, container);
       await registerReminderRoutes(api, container);
       await registerNotificationRoutes(api, container);
+      await registerExpenseRoutes(api, container);
+      await registerInventoryRoutes(api, container);
+      await registerShoppingRoutes(api, container);
     },
     { prefix: '/api/v1' },
   );

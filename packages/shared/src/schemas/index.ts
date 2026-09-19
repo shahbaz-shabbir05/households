@@ -5,3 +5,6 @@ export * from './member.js';
 export * from './task.js';
 export * from './event.js';
 export * from './reminder.js';
+export * from './expense.js';
+export * from './inventory.js';
+export * from './shopping.js';

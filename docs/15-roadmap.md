@@ -36,19 +36,22 @@ reminders + in-app notifications + the dispatch job · events + calendar
 *Why second:* highest-frequency interaction, and it exercises recurrence +
 notifications for real, which shakes out the platform before money is involved.
 
-## Phase 3 — Inventory & shopping
+## Phase 3 — Inventory & shopping ✅
 Inventory (groceries + supplies) · low-stock detection · shopping lists grouped
 by category/store · **the shopping-trip workflow** (purchase → inventory
 restock → expense) · recurring grocery cadence.
 
 *Why third:* the most-used daily loop, and the first true cross-module workflow.
 
-## Phase 4 — Money: expenses, bills, budgets
-Expenses + categories + monthly summary · bills with recurrence, due/overdue
-derivation, **pay → expense** · subscriptions view · budgets + warnings (V1).
+## Phase 4 — Money: bills, budgets, reports
+Bills with recurrence, due/overdue derivation, **pay → expense** ·
+subscriptions view · budgets + warnings.
 
-*Why fourth:* highest-value questions ("what's due", "what did we spend"), but
-it depends on expenses existing for the shopping workflow, so it follows phase 3.
+*Amended during phase 3:* the expenses ledger (categories, monthly summary,
+per-category breakdown) shipped in phase 3, because the shopping-trip workflow
+depends on it — a completed trip that does not record what was spent is exactly
+the disconnected-CRUD failure this product exists to avoid. Phase 4 now layers
+obligations and budgets on top of that ledger rather than building it.
 
 ## Phase 5 — Health
 Doctors · appointments + reminders · medicines + generated dose schedule + dose

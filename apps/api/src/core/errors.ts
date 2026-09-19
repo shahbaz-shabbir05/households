@@ -97,10 +97,34 @@ export const PG_UNIQUE_VIOLATION = '23505';
 export const PG_FOREIGN_KEY_VIOLATION = '23503';
 export const PG_CHECK_VIOLATION = '23514';
 
+/**
+ * Extracts a Postgres SQLSTATE from a thrown value.
+ *
+ * Walks the `cause` chain, because the query builder wraps driver errors: the
+ * SQLSTATE lives on the cause, not the outer error. Reading only the top-level
+ * `code` silently turns every constraint violation into a 500.
+ */
 export function pgErrorCode(error: unknown): string | undefined {
-  if (typeof error === 'object' && error !== null && 'code' in error) {
-    const code = (error as { code: unknown }).code;
-    return typeof code === 'string' ? code : undefined;
+  let current: unknown = error;
+
+  // Bounded, so a self-referencing cause cannot loop forever.
+  for (let depth = 0; depth < 5 && typeof current === 'object' && current !== null; depth += 1) {
+    const code = (current as { code?: unknown }).code;
+    // SQLSTATE is always five characters, which distinguishes it from Node's
+    // string error codes such as ECONNREFUSED.
+    if (typeof code === 'string' && /^[0-9A-Z]{5}$/.test(code)) return code;
+    current = (current as { cause?: unknown }).cause;
+  }
+  return undefined;
+}
+
+/** The constraint name a violation names, when the driver reports one. */
+export function pgConstraintName(error: unknown): string | undefined {
+  let current: unknown = error;
+  for (let depth = 0; depth < 5 && typeof current === 'object' && current !== null; depth += 1) {
+    const constraint = (current as { constraint?: unknown }).constraint;
+    if (typeof constraint === 'string') return constraint;
+    current = (current as { cause?: unknown }).cause;
   }
   return undefined;
 }
