@@ -1,0 +1,18 @@
+node_modules/
+dist/
+build/
+coverage/
+.env
+.env.*
+!.env.example
+*.log
+.DS_Store
+.vite/
+# Runtime upload root only. This pattern used to be `storage/`, which matches a
+# directory of that name at ANY depth — it silently excluded the source module
+# apps/api/src/core/storage/, so the branch would not build from a clean clone.
+# Anchored patterns only.
+/storage/
+/apps/api/storage/
+*.tsbuildinfo
+.turbo/
