@@ -106,10 +106,10 @@ export function MoneyHubScreen() {
       <HubList
         entries={[
           {
+            to: '/money/bills',
             label: 'Bills',
             description: 'Utilities, rent and subscriptions — due, overdue and paid',
             icon: CalendarClock,
-            phase: 'Phase 4',
           },
           {
             to: '/money/expenses',
@@ -118,17 +118,14 @@ export function MoneyHubScreen() {
             icon: Receipt,
           },
           {
+            to: '/money/budgets',
             label: 'Budgets',
             description: 'Monthly limits, with a warning before you cross them',
             icon: PiggyBank,
-            phase: 'Phase 4',
           },
         ]}
       />
-      <p className="mt-4 px-1 text-xs text-slate-500">
-        Bills and budgets are next. Until then, a reminder is a reasonable
-        stand-in for a due date you cannot afford to miss.
-      </p>
+
     </div>
   );
 }

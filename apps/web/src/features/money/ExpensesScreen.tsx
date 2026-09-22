@@ -235,7 +235,7 @@ function CategoryBreakdown({
               <div className="mt-1.5 h-2 w-full overflow-hidden rounded-sm bg-slate-100">
                 <div
                   className="h-full rounded-r-full bg-brand-600"
-                  style={{ width: `${Math.max(share, 1)}%` }}
+                  style={{ width: share === 0 ? '0%' : `${Math.max(share, 1.5)}%` }}
                   role="img"
                   aria-label={`${label(row.category)}: ${share.toFixed(0)} percent of this month’s spending`}
                 />

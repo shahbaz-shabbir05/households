@@ -43,7 +43,7 @@ restock → expense) · recurring grocery cadence.
 
 *Why third:* the most-used daily loop, and the first true cross-module workflow.
 
-## Phase 4 — Money: bills, budgets, reports
+## Phase 4 — Money: bills, budgets, reports ✅
 Bills with recurrence, due/overdue derivation, **pay → expense** ·
 subscriptions view · budgets + warnings.
 

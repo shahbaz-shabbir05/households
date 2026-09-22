@@ -18,6 +18,8 @@ import { HomeHubScreen, MoneyHubScreen } from '../features/hubs/HubScreens.js';
 import { ShoppingScreen } from '../features/shopping/ShoppingScreen.js';
 import { ShoppingListScreen } from '../features/shopping/ShoppingListScreen.js';
 import { ExpensesScreen } from '../features/money/ExpensesScreen.js';
+import { BillsScreen } from '../features/money/BillsScreen.js';
+import { BudgetsScreen } from '../features/money/BudgetsScreen.js';
 
 function FullPageSpinner() {
   return (
@@ -78,6 +80,8 @@ export const router = createBrowserRouter([
       { path: '/home/shopping/:listId', element: <ShoppingListScreen /> },
       { path: '/money', element: <MoneyHubScreen /> },
       { path: '/money/expenses', element: <ExpensesScreen /> },
+      { path: '/money/bills', element: <BillsScreen /> },
+      { path: '/money/budgets', element: <BudgetsScreen /> },
       { path: '/family', element: <FamilyScreen /> },
     ],
   },
