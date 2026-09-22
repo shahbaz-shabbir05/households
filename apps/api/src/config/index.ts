@@ -11,6 +11,20 @@ import { loadEnvFile } from './load-env.js';
 
 const DEV_SESSION_SECRET = 'dev-only-insecure-secret-change-me';
 
+/**
+ * An environment flag.
+ *
+ * Never `z.coerce.boolean()`: that is `Boolean(value)`, so `TRUST_PROXY=false`
+ * in a .env file parses as **true** — which would make `request.ip` read from
+ * a client-supplied X-Forwarded-For header, handing anyone a way past the
+ * per-IP rate limits on login and password reset.
+ */
+const envBoolean = (defaultValue: boolean) =>
+  z
+    .enum(['true', 'false', '1', '0', 'yes', 'no', 'on', 'off'])
+    .transform((v) => v === 'true' || v === '1' || v === 'yes' || v === 'on')
+    .default(String(defaultValue) as 'true' | 'false');
+
 const schema = z
   .object({
     NODE_ENV: z.enum(['development', 'test', 'production']).default('development'),
@@ -25,7 +39,7 @@ const schema = z
     SESSION_TTL_DAYS: z.coerce.number().int().positive().default(30),
     COOKIE_DOMAIN: z.string().optional(),
     /** Off in development so the app works over plain http://localhost. */
-    COOKIE_SECURE: z.coerce.boolean().default(false),
+    COOKIE_SECURE: envBoolean(false),
 
     /** Exact origins allowed to call the API with credentials. Never `*`. */
     CORS_ORIGINS: z
@@ -43,10 +57,10 @@ const schema = z
     EMAIL_FROM: z.string().default('Home Management System <no-reply@localhost>'),
 
     /** Lets a web instance run without the scheduler (docs/14). */
-    JOBS_ENABLED: z.coerce.boolean().default(true),
+    JOBS_ENABLED: envBoolean(true),
 
     LOG_LEVEL: z.enum(['fatal', 'error', 'warn', 'info', 'debug', 'trace', 'silent']).default('info'),
-    TRUST_PROXY: z.coerce.boolean().default(false),
+    TRUST_PROXY: envBoolean(false),
   })
   .superRefine((cfg, ctx) => {
     if (cfg.NODE_ENV !== 'production') return;

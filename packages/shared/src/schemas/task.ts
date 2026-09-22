@@ -1,6 +1,7 @@
 import { z } from 'zod';
 import { PRIORITIES, TASK_CATEGORIES, TASK_STATUSES } from '../enums.js';
 import {
+  booleanish,
   civilDateSchema,
   nullableCivilDate,
   nullableTimeOfDay,
@@ -61,7 +62,7 @@ export const TASK_SORT_FIELDS = ['dueDate', 'priority', 'createdAt', 'title'] as
 export const listTasksQuerySchema = paginationSchema.extend({
   status: taskStatusSchema.optional(),
   /** Convenience filter: everything not finished or cancelled. */
-  open: z.coerce.boolean().optional(),
+  open: booleanish.optional(),
   category: taskCategorySchema.optional(),
   priority: taskPrioritySchema.optional(),
   assigneeMemberId: uuidSchema.optional(),
@@ -69,7 +70,7 @@ export const listTasksQuerySchema = paginationSchema.extend({
   assignee: z.literal('me').optional(),
   dueBefore: civilDateSchema.optional(),
   dueAfter: civilDateSchema.optional(),
-  overdue: z.coerce.boolean().optional(),
+  overdue: booleanish.optional(),
   search: optionalText(200),
   sort: z.enum(TASK_SORT_FIELDS).default('dueDate'),
   order: sortOrderSchema,

@@ -1,13 +1,14 @@
 import type { FastifyInstance } from 'fastify';
 import { and, desc, eq, isNull } from 'drizzle-orm';
 import { z } from 'zod';
+import { booleanish } from '@hms/shared';
 import { notifications } from '../../db/schema/index.js';
 import type { Container } from '../../container.js';
 import { context, createGuards } from '../../http/guards.js';
 import { parseBody, parseQuery } from '../../http/validate.js';
 
 const listQuery = z.object({
-  unreadOnly: z.coerce.boolean().default(false),
+  unreadOnly: booleanish.default(false),
   limit: z.coerce.number().int().positive().max(100).default(50),
 });
 

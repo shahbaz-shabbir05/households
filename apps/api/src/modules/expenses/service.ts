@@ -9,6 +9,7 @@
 import { and, asc, count, desc, eq, gte, ilike, isNull, lte, or, sql, type SQL } from 'drizzle-orm';
 import {
   endOfMonth,
+  formatMoney,
   startOfMonth,
   type CreateExpenseInput,
   type ExpenseCategory,
@@ -104,7 +105,9 @@ export class ExpenseService {
       entityType: 'expense',
       entityId: row!.id,
       action: 'create',
-      summary: `Recorded ${row!.currency} ${(row!.amountMinor / 100).toFixed(2)} on ${row!.category}`,
+      // formatMoney knows each currency's scale; a hardcoded /100 is a
+      // tenfold error in the audit record for KWD and a hundredfold for JPY.
+      summary: `Recorded ${formatMoney(Number(row!.amountMinor), row!.currency)} on ${row!.category}`,
     });
 
     return toView(row!, null);
@@ -196,7 +199,7 @@ export class ExpenseService {
         entityType: 'expense',
         entityId: expenseId,
         action: 'delete',
-        summary: `Deleted ${existing.currency} ${(existing.amountMinor / 100).toFixed(2)}`,
+        summary: `Deleted ${formatMoney(Number(existing.amountMinor), existing.currency)}`,
       });
     });
   }

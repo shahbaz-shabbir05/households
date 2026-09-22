@@ -11,7 +11,8 @@ import { sql } from 'drizzle-orm';
 import { config } from './config/index.js';
 import { createContainer, type Container, type ContainerOverrides } from './container.js';
 import { registerErrorHandler } from './http/errors.js';
-import { assertCsrf } from './http/session.js';
+import { SESSION_COOKIE, assertCsrf } from './http/session.js';
+import { hashToken } from './core/tokens.js';
 import { assertMatrixIsComplete } from './core/policy/index.js';
 import { registerAuthRoutes } from './modules/auth/routes.js';
 import { registerHouseholdRoutes } from './modules/households/routes.js';
@@ -90,9 +91,20 @@ export async function buildApp(overrides: ContainerOverrides = {}): Promise<Buil
     global: true,
     max: 300,
     timeWindow: '1 minute',
-    // Per-user where we know who it is, per-IP otherwise: a family behind one
-    // NAT address should not rate-limit each other.
-    keyGenerator: (request) => request.userCtx?.user.id ?? request.ip,
+    /**
+     * Per-session where there is one, per-IP otherwise: a family behind one
+     * NAT address should not rate-limit each other.
+     *
+     * This keys off the cookie rather than `request.userCtx`, because the
+     * limiter runs on `onRequest` and `requireAuth` is a per-route
+     * `preHandler` — the context does not exist yet, so the previous version
+     * silently fell back to the IP for every request. The token is hashed so
+     * a bucket key can never carry a live session secret.
+     */
+    keyGenerator: (request) => {
+      const token = request.cookies?.[SESSION_COOKIE];
+      return token ? `s:${hashToken(token)}` : `ip:${request.ip}`;
+    },
   });
 
   const container = createContainer(app.log, overrides);

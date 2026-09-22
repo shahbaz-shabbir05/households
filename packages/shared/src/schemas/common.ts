@@ -78,6 +78,36 @@ export const optionalText = (max: number) =>
 export const requiredText = (max: number, label = 'This field') =>
   z.string().trim().min(1, `${label} is required`).max(max);
 
+/**
+ * A boolean as it arrives over the wire.
+ *
+ * `z.coerce.boolean()` is `Boolean(value)`, so the string "false" — which is
+ * exactly what a query string or an env file contains — parses as **true**.
+ * That silently inverts every flag it touches, so it is never used in this
+ * codebase; this is the only boolean parser.
+ */
+const BOOLEAN_WORDS: Record<string, boolean> = {
+  true: true, false: false,
+  '1': true, '0': false,
+  yes: true, no: false,
+  on: true, off: false,
+};
+
+export const booleanish = z
+  .union([z.boolean(), z.string()])
+  .transform((value, ctx) => {
+    if (typeof value === 'boolean') return value;
+    const parsed = BOOLEAN_WORDS[value.trim().toLowerCase()];
+    if (parsed === undefined) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        message: 'Expected true or false',
+      });
+      return z.NEVER;
+    }
+    return parsed;
+  });
+
 export const paginationSchema = z.object({
   page: z.coerce.number().int().positive().default(1),
   perPage: z.coerce.number().int().positive().max(MAX_PAGE_SIZE).default(DEFAULT_PAGE_SIZE),

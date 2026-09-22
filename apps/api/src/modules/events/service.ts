@@ -229,7 +229,7 @@ export class EventService {
       await this.assertParticipantsExist(ctx, input.participantMemberIds);
     }
 
-    const { participantMemberIds, recurrence: _recurrence, remindMinutesBefore: _remind, ...fields } = input;
+    const { participantMemberIds, recurrence: _recurrence, ...fields } = input;
 
     const updated = await this.db.transaction(async (tx) => {
       const changes = diffFields(existing as unknown as Record<string, unknown>, fields);

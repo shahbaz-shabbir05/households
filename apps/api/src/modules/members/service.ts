@@ -167,6 +167,20 @@ export class MemberService {
         .set({ isActive: false, deletedAt: new Date(), updatedBy: ctx.user.id })
         .where(eq(householdMembers.id, memberId));
 
+      // Any outstanding invitation has to go with them. Otherwise the invitee
+      // can still accept, land on a deleted member row, and be dropped at every
+      // household route with a 404 they cannot do anything about.
+      await tx
+        .update(householdInvites)
+        .set({ revokedAt: new Date() })
+        .where(
+          and(
+            eq(householdInvites.memberId, memberId),
+            isNull(householdInvites.acceptedAt),
+            isNull(householdInvites.revokedAt),
+          ),
+        );
+
       await writeAudit(tx, ctx, {
         entityType: 'household_member',
         entityId: memberId,
@@ -258,6 +272,21 @@ export class MemberService {
       if (!invite) {
         throw new ValidationError('That invitation is invalid or has expired', [
           { path: 'token', message: 'Invalid or expired' },
+        ]);
+      }
+
+      // Belt and braces alongside revoking on deactivation: an invite issued
+      // before this check existed must not resurrect a deleted member.
+      const target = await tx.query.householdMembers.findFirst({
+        where: and(
+          eq(householdMembers.id, invite.memberId),
+          isNull(householdMembers.deletedAt),
+        ),
+        columns: { id: true },
+      });
+      if (!target) {
+        throw new ValidationError('That invitation is no longer valid', [
+          { path: 'token', message: 'The person it was for is no longer in the household' },
         ]);
       }
 

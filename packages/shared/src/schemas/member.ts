@@ -1,6 +1,12 @@
 import { z } from 'zod';
 import { HOUSEHOLD_ROLES, RELATIONSHIPS } from '../enums.js';
-import { optionalCivilDate, optionalText, requiredText, uuidSchema } from './common.js';
+import {
+  booleanish,
+  optionalCivilDate,
+  optionalText,
+  requiredText,
+  uuidSchema,
+} from './common.js';
 import { emailSchema } from './auth.js';
 
 export const roleSchema = z.enum(HOUSEHOLD_ROLES);
@@ -32,7 +38,7 @@ export const updateMemberSchema = createMemberSchema.partial().extend({
 export type UpdateMemberInput = z.infer<typeof updateMemberSchema>;
 
 export const listMembersQuerySchema = z.object({
-  includeInactive: z.coerce.boolean().default(false),
+  includeInactive: booleanish.default(false),
   role: roleSchema.optional(),
 });
 export type ListMembersQuery = z.infer<typeof listMembersQuerySchema>;

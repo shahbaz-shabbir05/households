@@ -123,7 +123,7 @@ export class AuthService {
 
     const valid = await this.hasher.verify(input.password, user.passwordHash);
     if (!valid) {
-      await this.recordFailedLogin(user.id, user.failedLoginCount);
+      await this.recordFailedLogin(user.id, user.failedLoginCount, user.lockedUntil);
       throw new UnauthenticatedError('Email or password is incorrect');
     }
 
@@ -312,15 +312,25 @@ export class AuthService {
     return { user, sessionToken: token, expiresAt };
   }
 
-  private async recordFailedLogin(userId: string, current: number): Promise<void> {
-    const next = current + 1;
-    const lockedUntil =
+  private async recordFailedLogin(
+    userId: string,
+    current: number,
+    lockedUntil: Date | null,
+  ): Promise<void> {
+    // Once a lockout has expired the count starts again. Without this the
+    // counter stays at the maximum forever, so every later wrong password
+    // re-locks the account — one guess every fifteen minutes, well under the
+    // per-IP limit, would keep a known account locked out indefinitely.
+    const expired = lockedUntil !== null && lockedUntil <= this.now();
+    const base = expired ? 0 : current;
+    const next = base + 1;
+    const nextLock =
       next >= MAX_FAILED_LOGINS
         ? new Date(this.now().getTime() + LOCKOUT_MINUTES * 60_000)
         : null;
     await this.db
       .update(users)
-      .set({ failedLoginCount: next, ...(lockedUntil ? { lockedUntil } : {}) })
+      .set({ failedLoginCount: next, lockedUntil: nextLock })
       .where(eq(users.id, userId));
   }
 

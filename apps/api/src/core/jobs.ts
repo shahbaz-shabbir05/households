@@ -103,10 +103,24 @@ export class JobRunner {
       }
       return await this.execute(job, now);
     } finally {
-      if (locked) {
-        await client.query('SELECT pg_advisory_unlock($1::bigint)', [key.toString()]);
+      // The release gets its own finally: awaiting the unlock in the same block
+      // means a failed unlock (connection reset, statement timeout, pool
+      // shutdown) propagates before the client is returned, and a handful of
+      // those exhausts the pool until every request hangs.
+      try {
+        if (locked) {
+          await client.query('SELECT pg_advisory_unlock($1::bigint)', [key.toString()]);
+        }
+      } catch (error) {
+        // A lock on a connection that is about to be released is released with
+        // it, so this is worth recording but never worth failing the run.
+        this.log.warn(
+          { job: job.name, err: error instanceof Error ? error.message : String(error) },
+          'advisory unlock failed; releasing the connection anyway',
+        );
+      } finally {
+        client.release();
       }
-      client.release();
     }
   }
 

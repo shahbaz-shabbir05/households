@@ -78,7 +78,13 @@ export async function generateForSeries(
 ): Promise<number> {
   const today = todayIn(series.timezone, now);
   const horizonDays = series.rule.freq === 'yearly' ? YEARLY_HORIZON_DAYS : DEFAULT_HORIZON_DAYS;
-  const generateThrough = addDays(today, horizonDays);
+  // The horizon runs from today *or* the series start, whichever is later.
+  // Measuring it from today alone means a series whose first occurrence is
+  // further out than the horizon — "school fees monthly from January",
+  // set up in September — materialises nothing at all, and the create fails
+  // with a misleading "that repeat rule produces no dates".
+  const horizonFrom = series.anchorDate > today ? series.anchorDate : today;
+  const generateThrough = addDays(horizonFrom, horizonDays);
 
   // Catch-up window: past occurrences still matter for tasks and bills (an
   // unpaid bill from last Tuesday must exist), but we never reach back further
@@ -144,7 +150,7 @@ async function claimOccurrence(
 /** Loads series that are due for generation, joined to their rule and household timezone. */
 export async function loadSeriesDueForGeneration(
   db: Database,
-  today: CivilDate,
+  now: Date,
   limit = 200,
 ): Promise<SeriesRow[]> {
   const rows = await db
@@ -171,8 +177,19 @@ export async function loadSeriesDueForGeneration(
     .where(
       and(
         eq(recurringSeries.isActive, true),
-        // Not yet generated, or generated on an earlier day.
-        or(isNull(recurringSeries.lastGeneratedOn), lte(recurringSeries.lastGeneratedOn, today)),
+        // Strictly earlier: `lte` matches a series this run already handled, so
+        // every active series was re-expanded and re-written on all 96 ticks a
+        // day.
+        //
+        // The comparison is against each *household's* civil date, computed in
+        // SQL from the instant the caller passes — not from `now()`. Using the
+        // database clock would ignore the injected clock this is tested with,
+        // and a single server-side date would be a day out for households east
+        // or west of it.
+        or(
+          isNull(recurringSeries.lastGeneratedOn),
+          sql`${recurringSeries.lastGeneratedOn}::date < (${now.toISOString()}::timestamptz AT TIME ZONE households.timezone)::date`,
+        ),
       ),
     )
     .limit(limit);

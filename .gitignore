@@ -8,7 +8,11 @@ coverage/
 *.log
 .DS_Store
 .vite/
-storage/
-!storage/.gitkeep
+# Runtime upload root only. This pattern used to be `storage/`, which matches a
+# directory of that name at ANY depth — it silently excluded the source module
+# apps/api/src/core/storage/, so the branch would not build from a clean clone.
+# Anchored patterns only.
+/storage/
+/apps/api/storage/
 *.tsbuildinfo
 .turbo/

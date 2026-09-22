@@ -2,6 +2,7 @@ import { z } from 'zod';
 import { INVENTORY_CATEGORIES, INVENTORY_KINDS, UNITS } from '../enums.js';
 import {
   amountMinorSchema,
+  booleanish,
   optionalCivilDate,
   optionalText,
   paginationSchema,
@@ -62,7 +63,7 @@ export const listInventoryQuerySchema = paginationSchema.extend({
   kind: inventoryKindSchema.optional(),
   category: inventoryCategorySchema.optional(),
   /** Only items at or below their threshold. */
-  lowStock: z.coerce.boolean().optional(),
+  lowStock: booleanish.optional(),
   /** Only items expiring within N days. */
   expiringWithinDays: z.coerce.number().int().min(0).max(365).optional(),
   search: optionalText(200),

@@ -14,6 +14,7 @@ import {
   addMonths,
   civilParts,
   daysInMonth,
+  isCivilDate,
   makeCivilDate,
   startOfMonth,
   startOfWeek,
@@ -32,8 +33,12 @@ export function CalendarScreen() {
   const [params, setParams] = useSearchParams();
   const today = todayIn(household.timezone);
 
-  const view = (params.get('view') as CalendarView) ?? 'agenda';
-  const anchor = params.get('month') ?? startOfMonth(today);
+  const view: CalendarView = params.get('view') === 'month' ? 'month' : 'agenda';
+  // A URL is user input. An unvalidated value here reached Intl and
+  // `civilParts`, both of which throw on a bad date — and with no error
+  // boundary that unmounted the whole app and left a blank page.
+  const monthParam = params.get('month');
+  const anchor = monthParam && isCivilDate(monthParam) ? monthParam : startOfMonth(today);
 
   const range = useMemo(() => {
     if (view === 'agenda') return { from: today, to: addDays(today, 60) };

@@ -276,6 +276,14 @@ export function Sheet({
   const panelRef = useRef<HTMLDivElement>(null);
   const previouslyFocused = useRef<HTMLElement | null>(null);
 
+  // Call sites pass an inline arrow, so `onClose` has a new identity on every
+  // parent render. Depending on it directly re-ran this effect each time —
+  // tearing down focus and re-focusing the first input, which yanked the caret
+  // out of whatever the user was typing. The ref keeps the handler current
+  // without making it a dependency.
+  const onCloseRef = useRef(onClose);
+  onCloseRef.current = onClose;
+
   useEffect(() => {
     if (!open) return;
 
@@ -289,7 +297,7 @@ export function Sheet({
 
     function onKeyDown(event: KeyboardEvent) {
       if (event.key === 'Escape') {
-        onClose();
+        onCloseRef.current();
         return;
       }
       if (event.key !== 'Tab' || !panel) return;
@@ -319,7 +327,8 @@ export function Sheet({
       // Focus goes back where it came from, not to the top of the page.
       previouslyFocused.current?.focus();
     };
-  }, [open, onClose]);
+    // Deliberately only `open`: see the note on onCloseRef above.
+  }, [open]);
 
   if (!open) return null;
 

@@ -8,15 +8,13 @@ export async function registerDashboardRoutes(app: FastifyInstance, container: C
   app.get('/households/:householdId/dashboard', {
     preHandler: [requireAuth, requireHousehold],
     handler: async (request, reply) => {
-      const summary = await container.dashboard.summary(context(request));
+      const { summary, failures } = await container.dashboard.summary(context(request));
 
       // A contributor that failed degrades one section; it must not blank the
-      // screen, but it must be visible in the logs.
-      if (container.dashboard.failures.length > 0) {
-        request.log.error(
-          { failures: container.dashboard.failures.splice(0) },
-          'dashboard contributor failed',
-        );
+      // screen, but it must be visible in the logs — under this request's own
+      // household and request id.
+      if (failures.length > 0) {
+        request.log.error({ failures }, 'dashboard contributor failed');
       }
       return reply.send({ data: summary });
     },

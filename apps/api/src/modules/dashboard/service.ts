@@ -52,7 +52,17 @@ export class DashboardService {
     return this;
   }
 
-  async summary(ctx: RequestContext): Promise<DashboardSummary> {
+  /**
+   * Returns the snapshot plus any contributor failures for *this* request.
+   *
+   * The failures used to accumulate on the instance, which is a container
+   * singleton shared by every concurrent request — one household's failure
+   * could be drained and logged under another household's request id.
+   */
+  async summary(ctx: RequestContext): Promise<{
+    summary: DashboardSummary;
+    failures: Array<{ contributor: string; error: string }>;
+  }> {
     const now = this.now();
     const today = todayIn(ctx.household.timezone, now);
     const week = weekWindow(ctx.household.timezone, ctx.household.weekStartsOn, now);
@@ -69,16 +79,17 @@ export class DashboardService {
     ]);
 
     if (!household) throw new NotFoundError('Household');
+    const { items: collected, failures } = items;
 
-    const needsAttention = items.filter((i) => i.isOverdue || i.priority === 'urgent').sort(rank);
+    const needsAttention = collected.filter((i) => i.isOverdue || i.priority === 'urgent').sort(rank);
     const attentionIds = new Set(needsAttention.map((i) => i.id));
-    const todayItems = items.filter((i) => !attentionIds.has(i.id) && i.date === today).sort(rank);
+    const todayItems = collected.filter((i) => !attentionIds.has(i.id) && i.date === today).sort(rank);
     const laterIds = new Set([...attentionIds, ...todayItems.map((i) => i.id)]);
-    const thisWeek = items
+    const thisWeek = collected
       .filter((i) => !laterIds.has(i.id) && i.date > today && i.date <= window.weekTo)
       .sort(rank);
 
-    return {
+    const summary: DashboardSummary = {
       generatedAt: now.toISOString(),
       window,
       needsAttention,
@@ -93,6 +104,8 @@ export class DashboardService {
       household: { ...household, memberCount },
       quickActions: QUICK_ACTIONS.filter((qa) => can(ctx, qa.action)).map((qa) => qa.key),
     };
+
+    return { summary, failures };
   }
 
   /**
@@ -100,27 +113,29 @@ export class DashboardService {
    * dashboard, so failures are isolated and reported as a missing section
    * rather than a 500.
    */
-  private async collectItems(ctx: RequestContext, window: DashboardWindow): Promise<DashboardItem[]> {
+  private async collectItems(
+    ctx: RequestContext,
+    window: DashboardWindow,
+  ): Promise<{ items: DashboardItem[]; failures: Array<{ contributor: string; error: string }> }> {
     const results = await Promise.allSettled(
       this.contributors.map((c) => c.collect(this.db, ctx, window)),
     );
 
     const items: DashboardItem[] = [];
+    const failures: Array<{ contributor: string; error: string }> = [];
+
     results.forEach((result, index) => {
       if (result.status === 'fulfilled') {
         items.push(...result.value);
       } else {
-        this.failures.push({
+        failures.push({
           contributor: this.contributors[index]?.name ?? 'unknown',
           error: result.reason instanceof Error ? result.reason.message : String(result.reason),
         });
       }
     });
-    return items;
+    return { items, failures };
   }
-
-  /** Surfaced for logging by the route; not part of the client payload. */
-  readonly failures: Array<{ contributor: string; error: string }> = [];
 
   private async countMembers(householdId: string): Promise<number> {
     const [row] = await this.db

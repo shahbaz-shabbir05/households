@@ -13,6 +13,7 @@
 
 import { and, asc, count, desc, eq, inArray, isNull, sql } from 'drizzle-orm';
 import {
+  formatMoney,
   type AddLowStockInput,
   type AddShoppingItemInput,
   type CompleteTripInput,
@@ -32,7 +33,13 @@ import {
   shoppingTrips,
 } from '../../db/schema/index.js';
 import type { Database } from '../../db/client.js';
-import { ConflictError, NotFoundError, ValidationError } from '../../core/errors.js';
+import {
+  ConflictError,
+  NotFoundError,
+  PG_UNIQUE_VIOLATION,
+  ValidationError,
+  pgErrorCode,
+} from '../../core/errors.js';
 import { diffFields, writeAudit } from '../../core/audit.js';
 import { assertCan } from '../../core/policy/index.js';
 import type { RequestContext } from '../../core/request-context.js';
@@ -374,7 +381,26 @@ export class ShoppingService {
 
     const shoppedOn = input.shoppedOn ?? todayIn(ctx.household.timezone, this.now());
 
-    const result = await this.db.transaction(async (tx) => {
+    const result = await this.runTrip(ctx, listId, input, shoppedOn);
+
+    const counts = await this.countsFor([listId]);
+    return {
+      list: toListView(result.list, counts.get(listId)),
+      tripId: result.tripId,
+      expense: result.expense,
+      itemsPurchased: result.itemsPurchased,
+      itemsRestocked: result.itemsRestocked,
+    };
+  }
+
+  private async runTrip(
+    ctx: RequestContext,
+    listId: string,
+    input: CompleteTripInput,
+    shoppedOn: string,
+  ) {
+    try {
+      return await this.db.transaction(async (tx) => {
       const list = await tx.query.shoppingLists.findFirst({
         where: and(
           eq(shoppingLists.id, listId),
@@ -484,7 +510,7 @@ export class ShoppingService {
         summary:
           `Completed "${list.name}": ${purchased.length} item(s) bought` +
           (itemsRestocked > 0 ? `, ${itemsRestocked} restocked` : '') +
-          (expense ? `, ${expense.currency} ${(expense.amountMinor / 100).toFixed(2)} recorded` : ''),
+          (expense ? `, ${formatMoney(expense.amountMinor, expense.currency)} recorded` : ''),
       });
 
       return {
@@ -494,16 +520,16 @@ export class ShoppingService {
         itemsPurchased: purchased.length,
         itemsRestocked,
       };
-    });
-
-    const counts = await this.countsFor([listId]);
-    return {
-      list: toListView(result.list, counts.get(listId)),
-      tripId: result.tripId,
-      expense: result.expense,
-      itemsPurchased: result.itemsPurchased,
-      itemsRestocked: result.itemsRestocked,
-    };
+      });
+    } catch (error) {
+      // Two shoppers pressing "done" at once: the unique index on
+      // shopping_trips.list_id serialises them correctly, but the loser would
+      // otherwise get a bare "that already exists" instead of the reason.
+      if (pgErrorCode(error) === PG_UNIQUE_VIOLATION) {
+        throw new ConflictError('That list has already been completed');
+      }
+      throw error;
+    }
   }
 
   /* ----------------------------------------------------------- helpers --- */
