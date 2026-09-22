@@ -47,6 +47,13 @@ export function buildJobs(container: Container): JobDefinition[] {
       run: async ({ db, now }) => container.reminders.dispatchDue(db, now),
     },
     {
+      // Recomputes bill status and raises due/overdue notices. Hourly: a bill
+      // becoming overdue is a date boundary, not a minute-by-minute event.
+      name: 'refreshBillStatuses',
+      intervalMs: HOUR,
+      run: async ({ db, now }) => container.bills.refreshAndNotify(db, now),
+    },
+    {
       name: 'dispatchNotifications',
       intervalMs: MINUTE,
       run: async ({ db }) => container.notifications.dispatchPending(db),

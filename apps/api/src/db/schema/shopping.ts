@@ -78,6 +78,13 @@ export const expenses = pgTable(
     merchant: text('merchant'),
     description: text('description'),
 
+    /**
+     * Set when this expense settled a bill. The bill also points here, which
+     * looks circular but is not: this is the nullable, optional direction, and
+     * it lets "show me the bill behind this payment" be one join.
+     */
+    billId: uuid('bill_id'),
+
     ...timestamps,
     ...softDelete,
     ...authorship,

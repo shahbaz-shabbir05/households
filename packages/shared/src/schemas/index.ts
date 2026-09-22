@@ -8,3 +8,5 @@ export * from './reminder.js';
 export * from './expense.js';
 export * from './inventory.js';
 export * from './shopping.js';
+export * from './bill.js';
+export * from './budget.js';

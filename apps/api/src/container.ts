@@ -26,6 +26,9 @@ import { ExpenseService } from './modules/expenses/service.js';
 import { InventoryService } from './modules/inventory/service.js';
 import { ShoppingService } from './modules/shopping/service.js';
 import { createShoppingDashboardContributor } from './modules/shopping/dashboard.js';
+import { BillService } from './modules/bills/service.js';
+import { billDashboardContributor } from './modules/bills/dashboard.js';
+import { BudgetService } from './modules/budgets/service.js';
 
 export interface Container {
   db: Database;
@@ -44,6 +47,8 @@ export interface Container {
   expenses: ExpenseService;
   inventory: InventoryService;
   shopping: ShoppingService;
+  bills: BillService;
+  budgets: BudgetService;
 }
 
 export interface ContainerOverrides {
@@ -78,6 +83,10 @@ export function createContainer(log: FastifyBaseLogger, overrides: ContainerOver
   const expenses = new ExpenseService(db, now);
   const inventory = new InventoryService(db, now);
   const shopping = new ShoppingService(db, expenses, inventory, now);
+  // Bills compose with expenses and reminders the same way: pay writes the
+  // ledger entry and closes the nag, in one transaction.
+  const bills = new BillService(db, expenses, reminders, notifications, now);
+  const budgets = new BudgetService(db, now);
 
   // Modules register with the recurrence engine and the dashboard rather than
   // either of those importing modules — that is what keeps the monolith
@@ -85,14 +94,16 @@ export function createContainer(log: FastifyBaseLogger, overrides: ContainerOver
   materialisers
     .register('task', tasks.materialiser)
     .register('event', events.materialiser)
-    .register('reminder', reminders.materialiser);
+    .register('reminder', reminders.materialiser)
+    .register('bill', bills.materialiser);
 
   const dashboard = new DashboardService(db, now);
   dashboard
     .register(taskDashboardContributor)
     .register(reminderDashboardContributor)
     .register(eventDashboardContributor)
-    .register(createShoppingDashboardContributor(inventory));
+    .register(createShoppingDashboardContributor(inventory))
+    .register(billDashboardContributor);
 
   return {
     db,
@@ -111,5 +122,7 @@ export function createContainer(log: FastifyBaseLogger, overrides: ContainerOver
     expenses,
     inventory,
     shopping,
+    bills,
+    budgets,
   };
 }

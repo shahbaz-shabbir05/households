@@ -8,7 +8,17 @@
 import { eq, sql } from 'drizzle-orm';
 import { config } from '../config/index.js';
 import { closeDb, getDb } from './client.js';
-import { householdMembers, households, inventoryItems, shoppingListItems, shoppingLists, users } from './schema/index.js';
+import {
+  bills,
+  budgets,
+  householdMembers,
+  households,
+  inventoryItems,
+  providers,
+  shoppingListItems,
+  shoppingLists,
+  users,
+} from './schema/index.js';
 import { scryptHasher } from '../core/password.js';
 
 const DEMO_EMAIL = 'ayesha@example.test';
@@ -161,6 +171,117 @@ async function seed(): Promise<void> {
       })),
   );
 
+  // Utility providers and their bills: one overdue, one due soon, one paid —
+  // so the dashboard has something real to rank on first run.
+  const today = new Date();
+  const civil = (offsetDays: number) => {
+    const d = new Date(today.getTime() + offsetDays * 86_400_000);
+    return d.toISOString().slice(0, 10);
+  };
+
+  const utilityProviders = await db
+    .insert(providers)
+    .values(
+      (
+        [
+          ['K-Electric', 'electricity'],
+          ['SSGC', 'gas'],
+          ['KW&SB', 'water'],
+          ['PTCL', 'internet'],
+          ['Netflix', 'tv'],
+        ] as const
+      ).map(([name, utilityKind]) => ({
+        householdId: household!.id,
+        name,
+        utilityKind,
+        createdBy: user!.id,
+      })),
+    )
+    .returning({ id: providers.id, name: providers.name });
+
+  const byName = new Map(utilityProviders.map((p) => [p.name, p.id]));
+
+  await db.insert(bills).values([
+    {
+      householdId: household!.id,
+      name: 'Electricity',
+      billType: 'utility' as const,
+      providerId: byName.get('K-Electric')!,
+      accountNumber: 'KE-4471-8820',
+      dueDate: civil(-4),
+      amountMinor: 1840000,
+      currency: 'PKR',
+      expenseCategory: 'utilities' as const,
+      status: 'overdue' as const,
+      createdBy: user!.id,
+    },
+    {
+      householdId: household!.id,
+      name: 'Internet',
+      billType: 'utility' as const,
+      providerId: byName.get('PTCL')!,
+      accountNumber: 'PTCL-99120',
+      dueDate: civil(2),
+      amountMinor: 450000,
+      currency: 'PKR',
+      expenseCategory: 'utilities' as const,
+      status: 'due' as const,
+      createdBy: user!.id,
+    },
+    {
+      householdId: household!.id,
+      name: 'Gas',
+      billType: 'utility' as const,
+      providerId: byName.get('SSGC')!,
+      dueDate: civil(11),
+      amountMinor: 320000,
+      currency: 'PKR',
+      expenseCategory: 'utilities' as const,
+      createdBy: user!.id,
+    },
+    {
+      householdId: household!.id,
+      name: 'Netflix',
+      billType: 'subscription' as const,
+      providerId: byName.get('Netflix')!,
+      dueDate: civil(8),
+      amountMinor: 125000,
+      currency: 'PKR',
+      expenseCategory: 'subscriptions' as const,
+      createdBy: user!.id,
+    },
+    {
+      householdId: household!.id,
+      name: 'Rent',
+      billType: 'rent' as const,
+      dueDate: civil(9),
+      amountMinor: 8500000,
+      currency: 'PKR',
+      expenseCategory: 'rent' as const,
+      remindDaysBefore: 5,
+      createdBy: user!.id,
+    },
+  ]);
+
+  await db.insert(budgets).values([
+    {
+      householdId: household!.id,
+      category: 'groceries' as const,
+      amountMinor: 5000000,
+      currency: 'PKR',
+      startsOn: `${new Date().toISOString().slice(0, 7)}-01`,
+      createdBy: user!.id,
+    },
+    {
+      householdId: household!.id,
+      category: 'utilities' as const,
+      amountMinor: 3000000,
+      currency: 'PKR',
+      startsOn: `${new Date().toISOString().slice(0, 7)}-01`,
+      createdBy: user!.id,
+    },
+  ]);
+
   const [counted] = await db
     .select({ count: sql<number>`count(*)::int` })
     .from(householdMembers)
@@ -168,7 +289,7 @@ async function seed(): Promise<void> {
 
   console.log(
     `Seeded "${household!.name}" with ${counted?.count ?? 0} members, ` +
-      `${pantry.length} inventory items and a shopping list.`,
+      `${pantry.length} inventory items, a shopping list, 5 bills and 2 budgets.`,
   );
   console.log(`Sign in with ${DEMO_EMAIL} / ${DEMO_PASSWORD}`);
 }

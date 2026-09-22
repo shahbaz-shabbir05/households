@@ -253,6 +253,35 @@ export class ReminderService {
     return toView(row!, await this.assigneeName(row!.assigneeMemberId));
   }
 
+  /**
+   * Closes any outstanding reminder about a thing that has just been dealt
+   * with — paying a bill should not leave "pay the electricity bill" nagging.
+   *
+   * Called by other modules inside their own transaction, so the reminder and
+   * the settlement commit together.
+   */
+  async resolveForEntity(
+    tx: DbExecutor,
+    householdId: string,
+    entityType: string,
+    entityId: string,
+  ): Promise<number> {
+    const resolved = await tx
+      .update(reminders)
+      .set({ status: 'dismissed', updatedAt: this.now() })
+      .where(
+        and(
+          eq(reminders.householdId, householdId),
+          eq(reminders.entityType, entityType as never),
+          eq(reminders.entityId, entityId),
+          inArray(reminders.status, ['pending', 'sent', 'snoozed']),
+          isNull(reminders.deletedAt),
+        ),
+      )
+      .returning({ id: reminders.id });
+    return resolved.length;
+  }
+
   async dismiss(ctx: RequestContext, reminderId: string): Promise<void> {
     const existing = await this.find(ctx, reminderId);
     assertCan(ctx, 'reminder:update', policySubject(existing));
