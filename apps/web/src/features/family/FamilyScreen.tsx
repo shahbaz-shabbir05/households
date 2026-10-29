@@ -7,7 +7,8 @@
  */
 
 import { useState, type FormEvent } from 'react';
-import { Mail, ShieldCheck, UserPlus, Users } from 'lucide-react';
+import { Link } from 'react-router-dom';
+import { ChevronRight, HeartPulse, Mail, ShieldCheck, UserPlus, Users } from 'lucide-react';
 import type { HouseholdRole } from '@hms/shared';
 import { createMemberSchema } from '@hms/shared';
 import { useHousehold } from '../../app/session.js';
@@ -50,6 +51,7 @@ export function FamilyScreen() {
   const query = useMembers(household.id);
   const [addOpen, setAddOpen] = useState(false);
   const canManage = allows(household.role, 'manageMembers');
+  const canViewHealth = allows(household.role, 'viewHealth');
 
   return (
     <div>
@@ -65,6 +67,21 @@ export function FamilyScreen() {
           ) : undefined
         }
       />
+
+      {canViewHealth && (
+        <Link to="/family/health" className="mb-4 block">
+          <Card className="flex items-center gap-3 p-4 transition-colors hover:bg-slate-50">
+            <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-slate-100 text-slate-600">
+              <HeartPulse className="h-5 w-5" aria-hidden="true" />
+            </span>
+            <div className="min-w-0 flex-1">
+              <p className="text-sm font-medium text-slate-900">Health</p>
+              <p className="text-xs text-slate-500">Medicines, doses and appointments</p>
+            </div>
+            <ChevronRight className="h-5 w-5 shrink-0 text-slate-400" aria-hidden="true" />
+          </Card>
+        </Link>
+      )}
 
       {query.isPending ? (
         <ListSkeleton rows={4} />

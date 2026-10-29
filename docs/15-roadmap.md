@@ -53,12 +53,32 @@ depends on it — a completed trip that does not record what was spent is exactl
 the disconnected-CRUD failure this product exists to avoid. Phase 4 now layers
 obligations and budgets on top of that ledger rather than building it.
 
-## Phase 5 — Health
+## Phase 5 — Health ✅
 Doctors · appointments + reminders · medicines + generated dose schedule + dose
 logging + refill thresholds.
 
 *Why fifth:* high value but safety-sensitive; it should land on a platform whose
 recurrence and notification behaviour is already proven in production.
+
+*What the safety constraint cost, concretely.* §9 says this is record keeping
+and reminders, not a medical decision-making system. Honouring that is not a
+disclaimer in the footer — it is four decisions in the schema and the service:
+
+1. `dose_text` and `frequency_text` are free text, stored and displayed
+   verbatim. There is no amount column and no unit column, because a column
+   invites arithmetic on it.
+2. Reminder times are a list the household enters. "Three times a day" is never
+   expanded into 08:00/14:00/20:00 — the app would be choosing when a medicine
+   is taken.
+3. Recording a dose decrements the remaining count by **one unit**, never by a
+   number parsed out of the dose text. "2 tablets" does not mean "subtract 2";
+   the system has no idea whether the household counts tablets or bottles.
+4. A dose nobody acted on is marked `missed`, not deleted. An adherence record
+   that quietly drops the inconvenient rows is worse than none.
+
+The one place the module *does* assert itself is quiet hours: dose reminders
+are published at `urgent` priority so they are never deferred. A medicine
+reminder that arrives three hours late is not a reminder.
 
 ## Phase 6 — Documents, assets, maintenance, contacts
 Documents with visibility + expiry tracking · assets + warranty · maintenance

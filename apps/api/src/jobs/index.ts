@@ -54,6 +54,19 @@ export function buildJobs(container: Container): JobDefinition[] {
       run: async ({ db, now }) => container.bills.refreshAndNotify(db, now),
     },
     {
+      // Extends dose schedules, marks what was missed, reminds about doses
+      // that are due and flags anything needing a refill. Every step is a
+      // no-op insert, a one-way transition or a deduped notice.
+      name: 'medicineSweep',
+      intervalMs: 15 * MINUTE,
+      run: async ({ db, now }) => container.medicines.sweep(db, now),
+    },
+    {
+      name: 'appointmentReminders',
+      intervalMs: HOUR,
+      run: async ({ db, now }) => container.appointments.notifyUpcoming(db, now),
+    },
+    {
       name: 'dispatchNotifications',
       intervalMs: MINUTE,
       run: async ({ db }) => container.notifications.dispatchPending(db),

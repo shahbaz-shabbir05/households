@@ -9,17 +9,22 @@ import { eq, sql } from 'drizzle-orm';
 import { config } from '../config/index.js';
 import { closeDb, getDb } from './client.js';
 import {
+  appointments,
   bills,
   budgets,
+  doctors,
   householdMembers,
   households,
   inventoryItems,
+  medicineDoses,
+  medicines,
   providers,
   shoppingListItems,
   shoppingLists,
   users,
 } from './schema/index.js';
 import { scryptHasher } from '../core/password.js';
+import { instantFrom } from '../core/time.js';
 
 const DEMO_EMAIL = 'ayesha@example.test';
 const DEMO_PASSWORD = 'demo-password-please-change';
@@ -65,7 +70,7 @@ async function seed(): Promise<void> {
 
   // A realistic household: two adults with logins, two children and a helper
   // who are tracked and assignable but have no account (docs/04).
-  await db.insert(householdMembers).values([
+  const seededMembers = await db.insert(householdMembers).values([
     {
       householdId: household!.id,
       userId: user!.id,
@@ -107,7 +112,10 @@ async function seed(): Promise<void> {
       phone: '+92 301 7654321',
       createdBy: user!.id,
     },
-  ]);
+  ]).returning({ id: householdMembers.id, displayName: householdMembers.displayName });
+
+  const memberId = (displayName: string) =>
+    seededMembers.find((m) => m.displayName === displayName)!.id;
 
   // A realistic pantry, including a few things already running low so the
   // dashboard suggestion and the "add low stock" action have something to do.
@@ -282,6 +290,144 @@ async function seed(): Promise<void> {
     },
   ]);
 
+
+  /* ------------------------------------------------------------------ health */
+
+  // Health demo data stays deliberately plain: a dose written the way a
+  // pharmacist writes it, and reminder times somebody chose. Nothing here
+  // implies the app worked out when or how much to take (§9).
+  const seededDoctors = await db
+    .insert(doctors)
+    .values([
+      {
+        householdId: household!.id,
+        name: 'Dr Saleem Ahmed',
+        specialty: 'Paediatrics',
+        clinic: 'Clifton Children’s Clinic',
+        phone: '+92 21 3586 1234',
+        createdBy: user!.id,
+      },
+      {
+        householdId: household!.id,
+        name: 'Dr Farah Siddiqui',
+        specialty: 'General practice',
+        clinic: 'Aga Khan, Clifton',
+        createdBy: user!.id,
+      },
+    ])
+    .returning({ id: doctors.id, name: doctors.name });
+
+  const doctorId = (name: string) => seededDoctors.find((d) => d.name.startsWith(name))!.id;
+
+  const seededMedicines = await db
+    .insert(medicines)
+    .values([
+      {
+        householdId: household!.id,
+        memberId: memberId('Hamza Khan'),
+        name: 'Amoxicillin 250mg/5ml',
+        // Exactly as a pharmacist would write it. The app never reads an
+        // amount out of this string.
+        doseText: '5ml',
+        frequencyText: 'three times a day, after food',
+        instructions: 'Shake well. Finish the whole course.',
+        reminderTimes: ['08:00', '14:00', '20:00'],
+        startDate: civil(-2),
+        endDate: civil(3),
+        quantityRemaining: '60',
+        refillThreshold: '15',
+        prescribedByDoctorId: doctorId('Dr Saleem'),
+        createdBy: user!.id,
+      },
+      {
+        householdId: household!.id,
+        memberId: memberId('Ayesha Khan'),
+        name: 'Levothyroxine 50mcg',
+        doseText: '1 tablet',
+        frequencyText: 'every morning, 30 minutes before breakfast',
+        reminderTimes: ['06:30'],
+        startDate: civil(-180),
+        quantityRemaining: '4',
+        refillThreshold: '7',
+        prescribedByDoctorId: doctorId('Dr Farah'),
+        notes: 'Repeat prescription — ask at the next review.',
+        createdBy: user!.id,
+      },
+      {
+        householdId: household!.id,
+        memberId: memberId('Zara Khan'),
+        name: 'Cetirizine 10mg',
+        doseText: '1 tablet',
+        frequencyText: 'at night, only when needed',
+        // No reminder times on purpose: "only when needed" is not a schedule,
+        // and the app will not invent one.
+        reminderTimes: [],
+        startDate: civil(-30),
+        quantityRemaining: '20',
+        createdBy: user!.id,
+      },
+    ])
+    .returning({
+      id: medicines.id,
+      memberId: medicines.memberId,
+      reminderTimes: medicines.reminderTimes,
+      startDate: medicines.startDate,
+      endDate: medicines.endDate,
+    });
+
+  // Today's doses, built from the times above and nothing else. The sweep keeps
+  // the schedule topped up from here on.
+  const doseRows = seededMedicines.flatMap((medicine) =>
+    medicine.reminderTimes.map((time) => ({
+      householdId: household!.id,
+      medicineId: medicine.id,
+      memberId: medicine.memberId,
+      scheduledOn: civil(0),
+      scheduledAtTime: time,
+      scheduledAt: instantFrom(civil(0), time, household!.timezone),
+      createdBy: user!.id,
+    })),
+  );
+  if (doseRows.length > 0) await db.insert(medicineDoses).values(doseRows);
+
+  await db.insert(appointments).values([
+    {
+      householdId: household!.id,
+      memberId: memberId('Hamza Khan'),
+      doctorId: doctorId('Dr Saleem'),
+      scheduledOn: civil(2),
+      scheduledAtTime: '16:30',
+      location: 'Clifton Children’s Clinic',
+      reason: 'Follow-up on the chest infection',
+      remindDaysBefore: 1,
+      createdBy: user!.id,
+    },
+    {
+      householdId: household!.id,
+      memberId: memberId('Ayesha Khan'),
+      doctorId: doctorId('Dr Farah'),
+      scheduledOn: civil(21),
+      scheduledAtTime: '10:00',
+      reason: 'Thyroid review and blood test',
+      remindDaysBefore: 7,
+      createdBy: user!.id,
+    },
+    {
+      householdId: household!.id,
+      memberId: memberId('Zara Khan'),
+      doctorId: doctorId('Dr Farah'),
+      scheduledOn: civil(-14),
+      scheduledAtTime: '11:15',
+      reason: 'Seasonal allergies',
+      status: 'completed' as const,
+      // Stored word for word. The app never summarises or reinterprets this.
+      outcomeNotes:
+        'Cetirizine at night when symptoms flare. No need for a daily dose. Come back if it stops helping.',
+      followUpOn: civil(45),
+      createdBy: user!.id,
+    },
+  ]);
+
   const [counted] = await db
     .select({ count: sql<number>`count(*)::int` })
     .from(householdMembers)
@@ -289,7 +435,8 @@ async function seed(): Promise<void> {
 
   console.log(
     `Seeded "${household!.name}" with ${counted?.count ?? 0} members, ` +
-      `${pantry.length} inventory items, a shopping list, 5 bills and 2 budgets.`,
+      `${pantry.length} inventory items, a shopping list, 5 bills, 2 budgets, ` +
+      `3 medicines (${doseRows.length} doses today) and 3 appointments.`,
   );
   console.log(`Sign in with ${DEMO_EMAIL} / ${DEMO_PASSWORD}`);
 }

@@ -6,7 +6,7 @@
  * not shown as a row of zeros.
  */
 
-import { AlertTriangle, CalendarClock, CheckCircle2, Clock, ListTodo, Bell, PartyPopper } from 'lucide-react';
+import { AlertTriangle, CalendarClock, CheckCircle2, Clock, ListTodo, Bell, PartyPopper, Pill, Stethoscope } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import type { EntityType } from '@hms/shared';
 import { useHousehold, useSession } from '../../app/session.js';
@@ -15,6 +15,7 @@ import { useToast } from '../../components/ui/toast.js';
 import { friendlyDate, friendlyTime, longDate, overdueLabel } from '../../lib/format.js';
 import { useToggleTask } from '../tasks/hooks.js';
 import { useDismissReminder } from '../calendar/api.js';
+import { useRecordDose } from '../health/api.js';
 import { useDashboard, type DashboardItem } from './api.js';
 
 const ENTITY_ICONS: Partial<Record<EntityType, typeof ListTodo>> = {
@@ -22,6 +23,8 @@ const ENTITY_ICONS: Partial<Record<EntityType, typeof ListTodo>> = {
   reminder: Bell,
   event: PartyPopper,
   bill: CalendarClock,
+  medicine_dose: Pill,
+  appointment: Stethoscope,
 };
 
 export function DashboardScreen() {
@@ -125,10 +128,14 @@ function ItemRow({ item, today, locale }: { item: DashboardItem; today: string; 
   const toast = useToast();
   const toggleTask = useToggleTask(household.id);
   const dismissReminder = useDismissReminder(household.id);
+  const recordDose = useRecordDose(household.id);
 
   const Icon = ENTITY_ICONS[item.entityType] ?? Clock;
   const isTask = item.entityType === 'task';
   const isReminder = item.entityType === 'reminder';
+  // A dose can be ticked off from here: it is the single most frequent thing
+  // anyone does in the health module, and it should not cost two taps to get to.
+  const isDose = item.entityType === 'medicine_dose';
 
   async function onAct() {
     try {
@@ -138,21 +145,34 @@ function ItemRow({ item, today, locale }: { item: DashboardItem; today: string; 
       } else if (isReminder) {
         await dismissReminder.mutateAsync(item.id);
         toast.success('Dismissed');
+      } else if (isDose) {
+        // Taken, exactly as prescribed — never an amount this screen chose.
+        await recordDose.mutateAsync({
+          doseId: item.id,
+          input: { status: 'taken', decrementStock: true },
+        });
+        toast.success('Recorded as taken');
       }
     } catch {
       toast.error('That didn’t save — please try again');
     }
   }
 
-  const busy = toggleTask.isPending || dismissReminder.isPending;
+  const busy = toggleTask.isPending || dismissReminder.isPending || recordDose.isPending;
 
   return (
     <Card className={cx('flex items-center gap-3 p-3', item.isOverdue && 'ring-danger/30')}>
-      {(isTask || isReminder) ? (
+      {isTask || isReminder || isDose ? (
         <button
           onClick={() => void onAct()}
           disabled={busy}
-          aria-label={isTask ? `Mark "${item.title}" as done` : `Dismiss "${item.title}"`}
+          aria-label={
+            isTask
+              ? `Mark "${item.title}" as done`
+              : isDose
+                ? `Record "${item.title}" as taken`
+                : `Dismiss "${item.title}"`
+          }
           className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full ring-2 ring-slate-300 transition-colors hover:bg-brand-50 hover:ring-brand-500 disabled:opacity-50"
         >
           <CheckCircle2 className="h-5 w-5 text-transparent hover:text-brand-600" aria-hidden="true" />

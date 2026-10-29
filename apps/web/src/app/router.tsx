@@ -14,6 +14,9 @@ import { TasksScreen } from '../features/tasks/TasksScreen.js';
 import { CalendarScreen } from '../features/calendar/CalendarScreen.js';
 import { RemindersScreen } from '../features/calendar/RemindersScreen.js';
 import { FamilyScreen } from '../features/family/FamilyScreen.js';
+import { HealthScreen } from '../features/health/HealthScreen.js';
+import { MedicinesScreen } from '../features/health/MedicinesScreen.js';
+import { AppointmentsScreen } from '../features/health/AppointmentsScreen.js';
 import { HomeHubScreen, MoneyHubScreen } from '../features/hubs/HubScreens.js';
 import { ShoppingScreen } from '../features/shopping/ShoppingScreen.js';
 import { ShoppingListScreen } from '../features/shopping/ShoppingListScreen.js';
@@ -83,6 +86,9 @@ export const router = createBrowserRouter([
       { path: '/money/bills', element: <BillsScreen /> },
       { path: '/money/budgets', element: <BudgetsScreen /> },
       { path: '/family', element: <FamilyScreen /> },
+      { path: '/family/health', element: <HealthScreen /> },
+      { path: '/family/health/medicines', element: <MedicinesScreen /> },
+      { path: '/family/health/appointments', element: <AppointmentsScreen /> },
     ],
   },
 

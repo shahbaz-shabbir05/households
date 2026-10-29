@@ -29,6 +29,10 @@ import { createShoppingDashboardContributor } from './modules/shopping/dashboard
 import { BillService } from './modules/bills/service.js';
 import { billDashboardContributor } from './modules/bills/dashboard.js';
 import { BudgetService } from './modules/budgets/service.js';
+import { DoctorService } from './modules/health/doctors.js';
+import { AppointmentService } from './modules/health/appointments.js';
+import { MedicineService } from './modules/health/medicines.js';
+import { healthDashboardContributor } from './modules/health/dashboard.js';
 
 export interface Container {
   db: Database;
@@ -49,6 +53,9 @@ export interface Container {
   shopping: ShoppingService;
   bills: BillService;
   budgets: BudgetService;
+  doctors: DoctorService;
+  appointments: AppointmentService;
+  medicines: MedicineService;
 }
 
 export interface ContainerOverrides {
@@ -88,6 +95,12 @@ export function createContainer(log: FastifyBaseLogger, overrides: ContainerOver
   const bills = new BillService(db, expenses, reminders, notifications, now);
   const budgets = new BudgetService(db, now);
 
+  // Health. Doctors are shared between appointments and prescriptions, so both
+  // resolve names through the same service rather than its table.
+  const doctors = new DoctorService(db, now);
+  const appointments = new AppointmentService(db, doctors, notifications, now);
+  const medicines = new MedicineService(db, doctors, notifications, now);
+
   // Modules register with the recurrence engine and the dashboard rather than
   // either of those importing modules — that is what keeps the monolith
   // modular (docs/05, docs/08).
@@ -95,7 +108,8 @@ export function createContainer(log: FastifyBaseLogger, overrides: ContainerOver
     .register('task', tasks.materialiser)
     .register('event', events.materialiser)
     .register('reminder', reminders.materialiser)
-    .register('bill', bills.materialiser);
+    .register('bill', bills.materialiser)
+    .register('appointment', appointments.materialiser);
 
   const dashboard = new DashboardService(db, now);
   dashboard
@@ -103,7 +117,8 @@ export function createContainer(log: FastifyBaseLogger, overrides: ContainerOver
     .register(reminderDashboardContributor)
     .register(eventDashboardContributor)
     .register(createShoppingDashboardContributor(inventory))
-    .register(billDashboardContributor);
+    .register(billDashboardContributor)
+    .register(healthDashboardContributor);
 
   return {
     db,
@@ -124,5 +139,8 @@ export function createContainer(log: FastifyBaseLogger, overrides: ContainerOver
     shopping,
     bills,
     budgets,
+    doctors,
+    appointments,
+    medicines,
   };
 }

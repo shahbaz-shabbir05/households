@@ -27,6 +27,7 @@ import { registerInventoryRoutes } from './modules/inventory/routes.js';
 import { registerShoppingRoutes } from './modules/shopping/routes.js';
 import { registerBillRoutes } from './modules/bills/routes.js';
 import { registerBudgetRoutes } from './modules/budgets/routes.js';
+import { registerHealthRoutes } from './modules/health/routes.js';
 
 export interface BuiltApp {
   app: FastifyInstance;
@@ -143,6 +144,7 @@ export async function buildApp(overrides: ContainerOverrides = {}): Promise<Buil
       await registerShoppingRoutes(api, container);
       await registerBillRoutes(api, container);
       await registerBudgetRoutes(api, container);
+      await registerHealthRoutes(api, container);
     },
     { prefix: '/api/v1' },
   );

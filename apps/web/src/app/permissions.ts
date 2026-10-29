@@ -16,7 +16,8 @@ export type UiCapability =
   | 'createTask'
   | 'createEvent'
   | 'createReminder'
-  | 'viewShopping';
+  | 'viewShopping'
+  | 'viewHealth';
 
 const RULES: Record<UiCapability, (role: HouseholdRole) => boolean> = {
   manageMembers: (role) => role === 'admin',
@@ -27,6 +28,9 @@ const RULES: Record<UiCapability, (role: HouseholdRole) => boolean> = {
   createEvent: (role) => ROLE_RANK[role] >= ROLE_RANK.teen,
   createReminder: (role) => role !== 'helper',
   viewShopping: (role) => role !== 'helper',
+  // A teen sees their own records; the server decides whose. A helper has no
+  // business in anyone's health records at all.
+  viewHealth: (role) => role !== 'helper',
 };
 
 export function allows(role: HouseholdRole, capability: UiCapability): boolean {

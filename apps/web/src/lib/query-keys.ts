@@ -24,4 +24,6 @@ export const qk = {
     ['households', id, 'reminders', 'list', filters] as const,
 
   notifications: (id: string) => ['households', id, 'notifications'] as const,
+
+  health: (id: string) => ['households', id, 'health'] as const,
 };
